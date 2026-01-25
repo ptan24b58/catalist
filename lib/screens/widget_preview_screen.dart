@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../widget_snapshot.dart';
 import '../domain/mascot_state.dart';
+import '../models/widget_snapshot.dart';
+import '../services/service_locator.dart';
+import '../utils/app_colors.dart';
+import '../utils/constants.dart';
 
 class WidgetPreviewScreen extends StatefulWidget {
   const WidgetPreviewScreen({super.key});
@@ -11,16 +14,8 @@ class WidgetPreviewScreen extends StatefulWidget {
 }
 
 class _WidgetPreviewScreenState extends State<WidgetPreviewScreen> {
-  final WidgetSnapshotService _snapshotService = WidgetSnapshotService();
   WidgetSnapshot? _snapshot;
   bool _isLoading = true;
-
-  // Duolingo-inspired color palette
-  static const _happyGreen = Color(0xFF58CC02);
-  static const _neutralBlue = Color(0xFF1CB0F6);
-  static const _worriedOrange = Color(0xFFFF9600);
-  static const _sadRed = Color(0xFFFF4B4B);
-  static const _celebrateGold = Color(0xFFFFD700);
 
   @override
   void initState() {
@@ -30,10 +25,10 @@ class _WidgetPreviewScreenState extends State<WidgetPreviewScreen> {
 
   Future<void> _loadSnapshot() async {
     setState(() => _isLoading = true);
-    final snapshot = await _snapshotService.getSnapshot();
+    final snapshot = await widgetSnapshotService.getSnapshot();
     if (snapshot == null) {
-      await _snapshotService.generateSnapshot();
-      final newSnapshot = await _snapshotService.getSnapshot();
+      await widgetSnapshotService.generateSnapshot();
+      final newSnapshot = await widgetSnapshotService.getSnapshot();
       setState(() {
         _snapshot = newSnapshot;
         _isLoading = false;
@@ -47,39 +42,17 @@ class _WidgetPreviewScreenState extends State<WidgetPreviewScreen> {
   }
 
   Color _getEmotionColor(MascotEmotion emotion) {
-    switch (emotion) {
-      case MascotEmotion.happy:
-        return _happyGreen;
-      case MascotEmotion.neutral:
-        return _neutralBlue;
-      case MascotEmotion.worried:
-        return _worriedOrange;
-      case MascotEmotion.sad:
-        return _sadRed;
-      case MascotEmotion.celebrate:
-        return _celebrateGold;
-    }
+    return AppColors.getEmotionColor(emotion.name);
   }
 
   String _getEmotionMessage(MascotEmotion emotion) {
-    switch (emotion) {
-      case MascotEmotion.happy:
-        return "You're doing great!";
-      case MascotEmotion.neutral:
-        return "Let's keep going!";
-      case MascotEmotion.worried:
-        return "Don't forget me...";
-      case MascotEmotion.sad:
-        return "I miss you!";
-      case MascotEmotion.celebrate:
-        return "Amazing work!";
-    }
+    return AppConstants.getEmotionMessage(emotion.name);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F7),
+      backgroundColor: AppColors.surfaceLight,
       appBar: AppBar(
         title: const Text(
           'Widget Preview',
@@ -92,7 +65,7 @@ class _WidgetPreviewScreenState extends State<WidgetPreviewScreen> {
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             onPressed: () async {
-              await _snapshotService.generateSnapshot();
+              await widgetSnapshotService.generateSnapshot();
               await _loadSnapshot();
             },
             tooltip: 'Refresh',
@@ -116,7 +89,7 @@ class _WidgetPreviewScreenState extends State<WidgetPreviewScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Your cat shows how you\'re doing with your goals',
+                    "Your cat shows how you're doing with your goals",
                     style: TextStyle(
                       fontSize: 16,
                       color: Colors.grey[600],
@@ -378,8 +351,8 @@ class _WidgetPreviewScreenState extends State<WidgetPreviewScreen> {
                                 ),
                                 decoration: BoxDecoration(
                                   color: goal.goalType == 'daily'
-                                      ? _neutralBlue.withValues(alpha: 0.2)
-                                      : _worriedOrange.withValues(alpha: 0.2),
+                                      ? AppColors.emotionNeutral.withValues(alpha: 0.2)
+                                      : AppColors.emotionWorried.withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
@@ -388,8 +361,8 @@ class _WidgetPreviewScreenState extends State<WidgetPreviewScreen> {
                                     fontSize: 10,
                                     fontWeight: FontWeight.w600,
                                     color: goal.goalType == 'daily'
-                                        ? _neutralBlue
-                                        : _worriedOrange,
+                                        ? AppColors.emotionNeutral
+                                        : AppColors.emotionWorried,
                                   ),
                                 ),
                               ),
@@ -412,7 +385,8 @@ class _WidgetPreviewScreenState extends State<WidgetPreviewScreen> {
                               ),
                               const SizedBox(width: 10),
                               Text(
-                                goal.progressLabel ?? '${(goal.progress * 100).toInt()}%',
+                                goal.progressLabel ??
+                                    '${(goal.progress * 100).toInt()}%',
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w700,
@@ -435,18 +409,13 @@ class _WidgetPreviewScreenState extends State<WidgetPreviewScreen> {
   }
 
   IconData _getEmotionIcon(MascotEmotion emotion) {
-    switch (emotion) {
-      case MascotEmotion.happy:
-        return Icons.sentiment_very_satisfied_rounded;
-      case MascotEmotion.neutral:
-        return Icons.sentiment_neutral_rounded;
-      case MascotEmotion.worried:
-        return Icons.sentiment_dissatisfied_rounded;
-      case MascotEmotion.sad:
-        return Icons.sentiment_very_dissatisfied_rounded;
-      case MascotEmotion.celebrate:
-        return Icons.star_rounded;
-    }
+    return switch (emotion) {
+      MascotEmotion.happy => Icons.sentiment_very_satisfied_rounded,
+      MascotEmotion.neutral => Icons.sentiment_neutral_rounded,
+      MascotEmotion.worried => Icons.sentiment_dissatisfied_rounded,
+      MascotEmotion.sad => Icons.sentiment_very_dissatisfied_rounded,
+      MascotEmotion.celebrate => Icons.star_rounded,
+    };
   }
 
   Widget _buildEmotionPreview() {
@@ -499,8 +468,7 @@ class _WidgetPreviewScreenState extends State<WidgetPreviewScreen> {
                 emotion.name,
                 style: TextStyle(
                   fontSize: 11,
-                  fontWeight:
-                      isCurrentEmotion ? FontWeight.w700 : FontWeight.w500,
+                  fontWeight: isCurrentEmotion ? FontWeight.w700 : FontWeight.w500,
                   color: isCurrentEmotion ? color : Colors.grey[600],
                 ),
               ),
@@ -552,7 +520,7 @@ class _WidgetPreviewScreenState extends State<WidgetPreviewScreen> {
                 _buildDataRow('Type', _snapshot!.topGoal!.goalType),
                 _buildDataRow(
                   'Progress',
-                  _snapshot!.topGoal!.progressLabel ?? 
+                  _snapshot!.topGoal!.progressLabel ??
                       '${(_snapshot!.topGoal!.progress * 100).toInt()}%',
                 ),
                 _buildDataRow(

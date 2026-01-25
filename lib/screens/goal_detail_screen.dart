@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import '../domain/goal.dart';
-import '../data/goal_repository.dart';
-import '../widget_snapshot.dart';
+import '../services/service_locator.dart';
+import '../utils/constants.dart';
 import '../utils/date_utils.dart' as app_date_utils;
 import '../utils/logger.dart';
+import '../utils/snackbar_helper.dart';
 
 class GoalDetailScreen extends StatefulWidget {
   final Goal goal;
@@ -16,8 +17,6 @@ class GoalDetailScreen extends StatefulWidget {
 
 class _GoalDetailScreenState extends State<GoalDetailScreen> {
   late Goal _goal;
-  final GoalRepository _repository = GoalRepository();
-  final WidgetSnapshotService _snapshotService = WidgetSnapshotService();
   final _progressController = TextEditingController();
   double _percentageSliderValue = 0;
 
@@ -37,7 +36,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
 
   Future<void> _loadGoal() async {
     try {
-      final updated = await _repository.getGoalById(_goal.id);
+      final updated = await goalRepository.getGoalById(_goal.id);
       if (updated != null && mounted) {
         setState(() {
           _goal = updated;
@@ -47,38 +46,26 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     } catch (e, stackTrace) {
       AppLogger.error('Failed to load goal', e, stackTrace);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Failed to load goal details'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
+        SnackBarHelper.showError(context, AppConstants.errorLoadGoalDetails);
       }
     }
   }
 
   Future<void> _logDailyCompletion() async {
     try {
-      await _repository.logDailyCompletion(_goal.id, DateTime.now());
-      await _snapshotService.generateSnapshot(isCelebration: true);
+      await goalRepository.logDailyCompletion(_goal.id, DateTime.now());
+      await widgetSnapshotService.generateSnapshot(isCelebration: true);
       await _loadGoal();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Progress logged!'),
-            duration: Duration(seconds: 2),
-          ),
-        );
+        SnackBarHelper.showSuccess(context, AppConstants.successProgressLogged);
       }
     } catch (e, stackTrace) {
       AppLogger.error('Failed to log progress', e, stackTrace);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to log progress: ${e.toString()}'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
+        SnackBarHelper.showError(
+          context,
+          '${AppConstants.errorLogProgress}: ${e.toString()}',
         );
       }
     }
@@ -86,27 +73,21 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
 
   Future<void> _updatePercentage() async {
     try {
-      await _repository.updatePercentage(_goal.id, _percentageSliderValue);
-      await _snapshotService.generateSnapshot(
-          isCelebration: _percentageSliderValue >= 100);
+      await goalRepository.updatePercentage(_goal.id, _percentageSliderValue);
+      await widgetSnapshotService.generateSnapshot(
+        isCelebration: _percentageSliderValue >= 100,
+      );
       await _loadGoal();
 
       if (mounted && _percentageSliderValue >= 100) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Goal completed!'),
-            duration: Duration(seconds: 2),
-          ),
-        );
+        SnackBarHelper.showSuccess(context, AppConstants.successGoalCompleted);
       }
     } catch (e, stackTrace) {
       AppLogger.error('Failed to update percentage', e, stackTrace);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to update: ${e.toString()}'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
+        SnackBarHelper.showError(
+          context,
+          '${AppConstants.errorUpdateProgress}: ${e.toString()}',
         );
       }
     }
@@ -115,39 +96,32 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
   Future<void> _addNumericProgress() async {
     final value = double.tryParse(_progressController.text);
     if (value == null || value <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Please enter a valid number'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+      SnackBarHelper.showError(context, AppConstants.validationValidNumber);
       return;
     }
 
     try {
       final newValue = _goal.currentValue + value;
-      await _repository.updateNumericProgress(_goal.id, newValue);
-      await _snapshotService.generateSnapshot(
-          isCelebration: _goal.targetValue != null && newValue >= _goal.targetValue!);
+      await goalRepository.updateNumericProgress(_goal.id, newValue);
+      await widgetSnapshotService.generateSnapshot(
+        isCelebration: _goal.targetValue != null && newValue >= _goal.targetValue!,
+      );
       _progressController.clear();
       await _loadGoal();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Progress updated!'),
-            duration: Duration(seconds: 1),
-          ),
+        SnackBarHelper.showSuccess(
+          context,
+          AppConstants.successProgressUpdated,
+          duration: const Duration(seconds: 1),
         );
       }
     } catch (e, stackTrace) {
       AppLogger.error('Failed to update progress', e, stackTrace);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to update: ${e.toString()}'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
+        SnackBarHelper.showError(
+          context,
+          '${AppConstants.errorUpdateProgress}: ${e.toString()}',
         );
       }
     }
@@ -155,19 +129,18 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
 
   Future<void> _toggleMilestone(Milestone milestone) async {
     try {
-      await _repository.toggleMilestone(_goal.id, milestone.id);
-      final allComplete = _goal.milestones.every((m) => 
-          m.id == milestone.id ? !milestone.completed : m.completed);
-      await _snapshotService.generateSnapshot(isCelebration: allComplete);
+      await goalRepository.toggleMilestone(_goal.id, milestone.id);
+      final allComplete = _goal.milestones.every(
+        (m) => m.id == milestone.id ? !milestone.completed : m.completed,
+      );
+      await widgetSnapshotService.generateSnapshot(isCelebration: allComplete);
       await _loadGoal();
     } catch (e, stackTrace) {
       AppLogger.error('Failed to toggle milestone', e, stackTrace);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to update: ${e.toString()}'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
+        SnackBarHelper.showError(
+          context,
+          '${AppConstants.errorUpdateProgress}: ${e.toString()}',
         );
       }
     }
@@ -262,10 +235,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
               _getProgressDescription(),
               style: TextStyle(
                 fontSize: 14,
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurface
-                    .withValues(alpha: 0.7),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
               ),
             ),
           ],
@@ -339,32 +309,27 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
   }
 
   IconData _getProgressIcon() {
-    switch (_goal.progressType) {
-      case ProgressType.completion:
-        return Icons.check_circle_outline;
-      case ProgressType.percentage:
-        return Icons.pie_chart_outline;
-      case ProgressType.milestones:
-        return Icons.checklist;
-      case ProgressType.numeric:
-        return Icons.trending_up;
-    }
+    return switch (_goal.progressType) {
+      ProgressType.completion => Icons.check_circle_outline,
+      ProgressType.percentage => Icons.pie_chart_outline,
+      ProgressType.milestones => Icons.checklist,
+      ProgressType.numeric => Icons.trending_up,
+    };
   }
 
   String _getStatusText(bool isCompleted) {
     if (isCompleted) return 'Completed!';
 
-    switch (_goal.progressType) {
-      case ProgressType.completion:
-        return _goal.goalType == GoalType.daily ? 'Not Done Today' : 'In Progress';
-      case ProgressType.percentage:
-        return '${_goal.percentComplete.toInt()}% Complete';
-      case ProgressType.milestones:
-        return '${_goal.completedMilestones}/${_goal.milestones.length} Milestones';
-      case ProgressType.numeric:
-        final unit = _goal.unit ?? '';
-        return '${_goal.currentValue.toStringAsFixed(0)} / ${_goal.targetValue?.toStringAsFixed(0) ?? '?'} $unit';
-    }
+    return switch (_goal.progressType) {
+      ProgressType.completion => _goal.goalType == GoalType.daily
+          ? 'Not Done Today'
+          : 'In Progress',
+      ProgressType.percentage => '${_goal.percentComplete.toInt()}% Complete',
+      ProgressType.milestones =>
+        '${_goal.completedMilestones}/${_goal.milestones.length} Milestones',
+      ProgressType.numeric =>
+        '${_goal.currentValue.toStringAsFixed(0)} / ${_goal.targetValue?.toStringAsFixed(0) ?? '?'} ${_goal.unit ?? ''}',
+    };
   }
 
   String _getProgressDescription() {
@@ -374,33 +339,27 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
           : 'You achieved your goal!';
     }
 
-    switch (_goal.progressType) {
-      case ProgressType.completion:
-        return _goal.goalType == GoalType.daily
-            ? 'Tap the button below to mark as complete'
-            : 'Mark this goal as complete when you\'re done';
-      case ProgressType.percentage:
-        return 'Slide to update your progress';
-      case ProgressType.milestones:
-        final remaining = _goal.milestones.length - _goal.completedMilestones;
-        return '$remaining milestone${remaining == 1 ? '' : 's'} remaining';
-      case ProgressType.numeric:
-        final remaining = (_goal.targetValue ?? 0) - _goal.currentValue;
-        return '${remaining.toStringAsFixed(0)} ${_goal.unit ?? ''} to go';
-    }
+    return switch (_goal.progressType) {
+      ProgressType.completion => _goal.goalType == GoalType.daily
+          ? 'Tap the button below to mark as complete'
+          : "Mark this goal as complete when you're done",
+      ProgressType.percentage => 'Slide to update your progress',
+      ProgressType.milestones => () {
+          final remaining = _goal.milestones.length - _goal.completedMilestones;
+          return '$remaining milestone${remaining == 1 ? '' : 's'} remaining';
+        }(),
+      ProgressType.numeric =>
+        '${((_goal.targetValue ?? 0) - _goal.currentValue).toStringAsFixed(0)} ${_goal.unit ?? ''} to go',
+    };
   }
 
   Widget _buildProgressControls() {
-    switch (_goal.progressType) {
-      case ProgressType.completion:
-        return _buildCompletionControls();
-      case ProgressType.percentage:
-        return _buildPercentageControls();
-      case ProgressType.milestones:
-        return _buildMilestoneControls();
-      case ProgressType.numeric:
-        return _buildNumericControls();
-    }
+    return switch (_goal.progressType) {
+      ProgressType.completion => _buildCompletionControls(),
+      ProgressType.percentage => _buildPercentageControls(),
+      ProgressType.milestones => _buildMilestoneControls(),
+      ProgressType.numeric => _buildNumericControls(),
+    };
   }
 
   Widget _buildCompletionControls() {
@@ -410,8 +369,8 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
       onPressed: _goal.goalType == GoalType.daily
           ? _logDailyCompletion
           : () async {
-              await _repository.markLongTermComplete(_goal.id);
-              await _snapshotService.generateSnapshot(isCelebration: true);
+              await goalRepository.markLongTermComplete(_goal.id);
+              await widgetSnapshotService.generateSnapshot(isCelebration: true);
               await _loadGoal();
             },
       icon: const Icon(Icons.check),
@@ -521,14 +480,9 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                   title: Text(
                     milestone.title,
                     style: TextStyle(
-                      decoration: milestone.completed
-                          ? TextDecoration.lineThrough
-                          : null,
+                      decoration: milestone.completed ? TextDecoration.lineThrough : null,
                       color: milestone.completed
-                          ? Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.5)
+                          ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)
                           : null,
                     ),
                   ),
@@ -537,10 +491,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                           'Completed ${app_date_utils.DateUtils.formatDisplayDate(milestone.completedAt!)}',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.5),
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                           ),
                         )
                       : null,
@@ -557,7 +508,8 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     if (_goal.isCompleted) return const SizedBox.shrink();
 
     final unit = _goal.unit ?? '';
-    
+    final now = DateTime.now();
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -603,12 +555,9 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
             if (_goal.goalType == GoalType.daily) ...[
               const SizedBox(height: 12),
               Text(
-                'Daily progress: ${_goal.getProgressToday(DateTime.now()).toInt()}/${_goal.dailyTarget}',
+                'Daily progress: ${_goal.getProgressToday(now).toInt()}/${_goal.dailyTarget}',
                 style: TextStyle(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.7),
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                 ),
               ),
             ],
@@ -665,13 +614,12 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
   }
 
   Widget _buildDeadlineCard() {
-    final daysRemaining = _goal.getDaysRemaining(DateTime.now());
-    final isOverdue = _goal.isOverdue(DateTime.now());
+    final now = DateTime.now();
+    final daysRemaining = _goal.getDaysRemaining(now);
+    final isOverdue = _goal.isOverdue(now);
 
     return Card(
-      color: isOverdue
-          ? Theme.of(context).colorScheme.errorContainer
-          : null,
+      color: isOverdue ? Theme.of(context).colorScheme.errorContainer : null,
       child: ListTile(
         leading: Icon(
           isOverdue ? Icons.warning : Icons.calendar_today,
@@ -713,10 +661,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
           app_date_utils.DateUtils.formatDisplayDate(_goal.lastCompletedAt!),
           style: TextStyle(
             fontSize: 14,
-            color: Theme.of(context)
-                .colorScheme
-                .onSurface
-                .withValues(alpha: 0.7),
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
           ),
         ),
       ),

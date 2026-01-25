@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Goal Tracker</string>
-    <string name="goal_widget_description">Track your daily and long-term goals with a reactive cat mascot</string>
+    <string name="app_name">Catalist</string>
+    <string name="widget_name">Catalist Widget</string>
+    <string name="catalist_widget_description">Track your daily and long-term goals with a reactive cat mascot</string>
 </resources>

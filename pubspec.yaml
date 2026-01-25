@@ -1,4 +1,4 @@
-name: goal_widget
+name: catalist
 description: A widget-first goal tracking application featuring a reactive cat mascot
 publish_to: 'none'
 version: 1.0.0+1

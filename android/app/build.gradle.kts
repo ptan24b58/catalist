@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "com.goalwidget"
+    namespace = "com.catalist"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -27,7 +27,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.goalwidget"
+        applicationId = "com.catalist"
         minSdk = 24
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

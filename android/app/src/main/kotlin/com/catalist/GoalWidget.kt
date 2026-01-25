@@ -1,4 +1,4 @@
-package com.goalwidget
+package com.catalist
 
 import android.content.Context
 import android.util.Log
@@ -59,22 +59,22 @@ object EmotionColors {
     }
 }
 
-class GoalWidget : GlanceAppWidget() {
+class CatalistWidget : GlanceAppWidget() {
 
     override val sizeMode = SizeMode.Single
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        Log.d("GoalWidget", "provideGlance called")
+        Log.d("CatalistWidget", "provideGlance called")
         provideContent {
             GlanceTheme {
-                GoalWidgetContent(context)
+                CatalistWidgetContent(context)
             }
         }
     }
 }
 
 @androidx.compose.runtime.Composable
-fun GoalWidgetContent(context: Context) {
+fun CatalistWidgetContent(context: Context) {
     val snapshot = loadSnapshot(context)
     val emotion = snapshot?.mascot?.emotion ?: "neutral"
     val backgroundColor = EmotionColors.backgroundFromEmotion(emotion)
@@ -211,15 +211,15 @@ fun loadSnapshot(context: Context): WidgetSnapshot? {
     return try {
         val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
         val snapshotJson = prefs.getString("flutter.widget_snapshot", null)
-        Log.d("GoalWidget", "Snapshot JSON: $snapshotJson")
+        Log.d("CatalistWidget", "Snapshot JSON: $snapshotJson")
         if (snapshotJson != null) {
             parseSnapshot(snapshotJson)
         } else {
-            Log.d("GoalWidget", "No snapshot found in SharedPreferences")
+            Log.d("CatalistWidget", "No snapshot found in SharedPreferences")
             null
         }
     } catch (e: Exception) {
-        Log.e("GoalWidget", "Error loading snapshot", e)
+        Log.e("CatalistWidget", "Error loading snapshot", e)
         null
     }
 }
@@ -254,17 +254,17 @@ fun parseSnapshot(json: String): WidgetSnapshot? {
             mascot = mascot
         )
     } catch (e: Exception) {
-        Log.e("GoalWidget", "Error parsing snapshot", e)
+        Log.e("CatalistWidget", "Error parsing snapshot", e)
         null
     }
 }
 
-class GoalWidgetReceiver : GlanceAppWidgetReceiver() {
-    override val glanceAppWidget: GlanceAppWidget = GoalWidget()
+class CatalistWidgetReceiver : GlanceAppWidgetReceiver() {
+    override val glanceAppWidget: GlanceAppWidget = CatalistWidget()
 
     override fun onEnabled(context: Context) {
         super.onEnabled(context)
-        Log.d("GoalWidget", "Widget enabled")
+        Log.d("CatalistWidget", "Widget enabled")
     }
 
     override fun onUpdate(
@@ -273,6 +273,6 @@ class GoalWidgetReceiver : GlanceAppWidgetReceiver() {
         appWidgetIds: IntArray
     ) {
         super.onUpdate(context, appWidgetManager, appWidgetIds)
-        Log.d("GoalWidget", "Widget onUpdate called for ${appWidgetIds.size} widgets")
+        Log.d("CatalistWidget", "Widget onUpdate called for ${appWidgetIds.size} widgets")
     }
 }

@@ -1,4 +1,4 @@
-package com.goalwidget
+package com.catalist
 
 import io.flutter.embedding.android.FlutterActivity
 

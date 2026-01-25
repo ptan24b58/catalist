@@ -1,6 +1,6 @@
 {
-    "name": "Habit Widget",
-    "short_name": "Habit Widget",
+    "name": "Catalist",
+    "short_name": "Catalist",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#FFF8F0",

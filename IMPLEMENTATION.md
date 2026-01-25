@@ -11,13 +11,13 @@
 - ✅ **Widget Action Handler**: Processes actions from native widgets
 
 ### iOS Native Widget
-- ✅ **GoalWidget.swift**: SwiftUI widget with WidgetKit
+- ✅ **GoalWidget.swift**: SwiftUI widget with WidgetKit (CatalistWidget)
 - ✅ **LogGoalIntent.swift**: AppIntent for interactive widget actions
 - ✅ **Timeline Provider**: Scheduled refreshes (morning, midday, evening, midnight)
 - ✅ **Widget Views**: Small and medium widget layouts
 
 ### Android Native Widget
-- ✅ **GoalWidget.kt**: Jetpack Glance widget implementation
+- ✅ **GoalWidget.kt**: Jetpack Glance widget implementation (CatalistWidget)
 - ✅ **LogGoalAction.kt**: ActionCallback for widget interactions
 - ✅ **Widget Receiver**: Broadcast receiver for widget updates
 - ✅ **Android Configuration**: Manifest, widget info, layouts
@@ -60,7 +60,7 @@ Urgency score (0-1) combines:
    - Add to iOS asset catalog and Android drawable resources
 
 2. **App Group Configuration** (iOS):
-   - Configure App Group in Xcode: `group.com.goalwidget`
+   - Configure App Group in Xcode: `group.com.catalist`
    - Update widget snapshot service to write to App Group container
 
 3. **Shared Storage** (Android):
@@ -108,7 +108,7 @@ ios/
     └── LogGoalIntent.swift
 
 android/
-└── goalwidget/
+└── catalist/
     ├── GoalWidget.kt
     └── LogGoalAction.kt
 ```
@@ -117,5 +117,5 @@ android/
 
 - The mascot currently uses system icons as placeholders
 - Widget snapshot is stored in SharedPreferences (accessible on Android, needs App Group on iOS)
-- Deep links use `goalwidget://` scheme
+- Deep links use `catalist://` scheme
 - Widget refreshes are scheduled but may need background task configuration for reliability

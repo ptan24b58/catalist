@@ -1,4 +1,4 @@
-# Goal Widget App - Setup Guide
+# Catalist Widget App - Setup Guide
 
 ## Prerequisites
 
@@ -20,7 +20,7 @@
      - Select the Runner target
      - Go to "Signing & Capabilities"
      - Add "App Groups" capability
-     - Create/select group: `group.com.goalwidget`
+     - Create/select group: `group.com.catalist`
    - Add Widget Extension:
      - File → New → Target
      - Select "Widget Extension"
@@ -44,13 +44,13 @@ flutter run
 ### iOS
 1. Long-press on home screen
 2. Tap the "+" button
-3. Search for "Goal Widget"
+3. Search for "Catalist"
 4. Add the widget to your home screen
 
 ### Android
 1. Long-press on home screen
 2. Tap "Widgets"
-3. Find "Goal Widget"
+3. Find "Catalist"
 4. Drag to home screen
 
 ## Architecture Notes

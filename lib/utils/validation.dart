@@ -49,7 +49,7 @@ class Validation {
     }
 
     // Basic validation: non-empty string, reasonable length
-    if (id.length > 100) {
+    if (id.length > AppConstants.maxIdLength) {
       return false;
     }
 

@@ -2,28 +2,21 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../data/goal_repository.dart';
-import '../widget_snapshot.dart';
 import '../utils/logger.dart';
 import '../utils/validation.dart';
+import 'service_locator.dart';
 
 // Conditional imports for platform-specific code
 import 'dart:io' if (dart.library.html) 'platform_stub.dart' as io;
 
 /// Handles actions triggered from native widgets
 class WidgetActionHandler {
-  final GoalRepository _repository = GoalRepository();
-  final WidgetSnapshotService _snapshotService = WidgetSnapshotService();
-
   /// Check for pending widget actions and process them
   Future<void> checkAndProcessActions() async {
     // Widgets are only available on mobile platforms
-    if (kIsWeb) {
-      return;
-    }
+    if (kIsWeb) return;
 
     try {
-      // Check platform using dart:io (not available on web)
       if (_isIOS()) {
         await _processIOSAction();
       } else if (_isAndroid()) {
@@ -98,8 +91,8 @@ class WidgetActionHandler {
           return;
         }
 
-        await _repository.logDailyCompletion(goalId, DateTime.now());
-        await _snapshotService.generateSnapshot(isCelebration: true);
+        await goalRepository.logDailyCompletion(goalId, DateTime.now());
+        await widgetSnapshotService.generateSnapshot(isCelebration: true);
       } else {
         AppLogger.warning('Unknown action type or missing goal ID: $action');
       }
@@ -109,7 +102,7 @@ class WidgetActionHandler {
     }
   }
 
-  /// Process action from deep link (e.g., goalwidget://log?goalId=xxx)
+  /// Process action from deep link (e.g., catalist://log?goalId=xxx)
   Future<void> processDeepLink(String? goalId) async {
     if (goalId == null || !Validation.isValidGoalId(goalId)) {
       AppLogger.warning('Invalid goal ID in deep link: $goalId');
@@ -117,8 +110,8 @@ class WidgetActionHandler {
     }
 
     try {
-      await _repository.logDailyCompletion(goalId, DateTime.now());
-      await _snapshotService.generateSnapshot(isCelebration: true);
+      await goalRepository.logDailyCompletion(goalId, DateTime.now());
+      await widgetSnapshotService.generateSnapshot(isCelebration: true);
     } catch (e, stackTrace) {
       AppLogger.error('Error processing deep link', e, stackTrace);
       rethrow;

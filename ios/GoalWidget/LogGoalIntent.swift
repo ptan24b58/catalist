@@ -16,7 +16,7 @@ struct LogGoalIntent: AppIntent {
     func perform() async throws -> some IntentResult {
         // Write action to shared storage for Flutter app to process
         guard let appGroupURL = FileManager.default.containerURL(
-            forSecurityApplicationGroupIdentifier: "group.com.goalwidget"
+            forSecurityApplicationGroupIdentifier: "group.com.catalist"
         ) else {
             throw IntentError.appGroupNotFound
         }
@@ -33,10 +33,10 @@ struct LogGoalIntent: AppIntent {
         }
         
         // Request widget reload
-        WidgetCenter.shared.reloadTimelines(ofKind: "GoalWidget")
+        WidgetCenter.shared.reloadTimelines(ofKind: "Catalist")
         
         // Open app to process action
-        if let appURL = URL(string: "goalwidget://log?goalId=\(goalId)") {
+        if let appURL = URL(string: "catalist://log?goalId=\(goalId)") {
             await UIApplication.shared.open(appURL)
         }
         

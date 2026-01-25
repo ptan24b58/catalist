@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import '../domain/goal.dart';
-import '../data/goal_repository.dart';
-import '../widget_snapshot.dart';
-import '../utils/validation.dart';
-import '../utils/id_generator.dart';
+import '../services/service_locator.dart';
 import '../utils/constants.dart';
+import '../utils/id_generator.dart';
 import '../utils/logger.dart';
+import '../utils/snackbar_helper.dart';
+import '../utils/validation.dart';
 
 class AddGoalScreen extends StatefulWidget {
   const AddGoalScreen({super.key});
@@ -19,8 +19,8 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
   final _titleController = TextEditingController();
   final _targetController = TextEditingController();
   final _unitController = TextEditingController();
-  final List<String> _milestoneInputs = [];
   final _milestoneController = TextEditingController();
+  final List<String> _milestoneInputs = [];
 
   GoalType _goalType = GoalType.daily;
   ProgressType _progressType = ProgressType.completion;
@@ -39,9 +39,8 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
   List<ProgressType> get _availableProgressTypes {
     if (_goalType == GoalType.daily) {
       return [ProgressType.completion, ProgressType.numeric];
-    } else {
-      return [ProgressType.percentage, ProgressType.milestones, ProgressType.numeric];
     }
+    return [ProgressType.percentage, ProgressType.milestones, ProgressType.numeric];
   }
 
   void _onGoalTypeChanged(GoalType? type) {
@@ -89,32 +88,19 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
 
     // Additional validation for specific progress types
     if (_progressType == ProgressType.milestones && _milestoneInputs.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Please add at least one milestone'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+      SnackBarHelper.showError(context, AppConstants.validationAddMilestone);
       return;
     }
 
     if (_progressType == ProgressType.numeric) {
       final target = double.tryParse(_targetController.text);
       if (target == null || target <= 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Please enter a valid target value'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
+        SnackBarHelper.showError(context, AppConstants.validationValidTarget);
         return;
       }
     }
 
     try {
-      final repository = GoalRepository();
-      final snapshotService = WidgetSnapshotService();
-
       final sanitizedTitle = Validation.sanitizeTitle(_titleController.text);
 
       // Build milestones list
@@ -140,14 +126,16 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
         goalType: _goalType,
         progressType: _progressType,
         targetValue: targetValue,
-        unit: _unitController.text.trim().isEmpty ? null : _unitController.text.trim(),
+        unit: _unitController.text.trim().isEmpty
+            ? null
+            : _unitController.text.trim(),
         milestones: milestones,
         deadline: _goalType == GoalType.longTerm ? _deadline : null,
         createdAt: DateTime.now(),
       );
 
-      await repository.saveGoal(goal);
-      await snapshotService.generateSnapshot();
+      await goalRepository.saveGoal(goal);
+      await widgetSnapshotService.generateSnapshot();
 
       if (mounted) {
         Navigator.pop(context);
@@ -155,11 +143,9 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
     } catch (e, stackTrace) {
       AppLogger.error('Failed to save goal', e, stackTrace);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to save goal: ${e.toString()}'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
+        SnackBarHelper.showError(
+          context,
+          '${AppConstants.errorSaveFailed}: ${e.toString()}',
         );
       }
     }
@@ -345,29 +331,21 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
   }
 
   String _getProgressTypeLabel(ProgressType type) {
-    switch (type) {
-      case ProgressType.completion:
-        return 'Simple Check';
-      case ProgressType.percentage:
-        return 'Percentage';
-      case ProgressType.milestones:
-        return 'Milestones';
-      case ProgressType.numeric:
-        return 'Numeric Target';
-    }
+    return switch (type) {
+      ProgressType.completion => 'Simple Check',
+      ProgressType.percentage => 'Percentage',
+      ProgressType.milestones => 'Milestones',
+      ProgressType.numeric => 'Numeric Target',
+    };
   }
 
   IconData _getProgressTypeIcon(ProgressType type) {
-    switch (type) {
-      case ProgressType.completion:
-        return Icons.check_circle_outline;
-      case ProgressType.percentage:
-        return Icons.pie_chart_outline;
-      case ProgressType.milestones:
-        return Icons.checklist;
-      case ProgressType.numeric:
-        return Icons.trending_up;
-    }
+    return switch (type) {
+      ProgressType.completion => Icons.check_circle_outline,
+      ProgressType.percentage => Icons.pie_chart_outline,
+      ProgressType.milestones => Icons.checklist,
+      ProgressType.numeric => Icons.trending_up,
+    };
   }
 
   List<Widget> _buildConditionalFields() {

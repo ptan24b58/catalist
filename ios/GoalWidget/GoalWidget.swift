@@ -1,15 +1,15 @@
 import WidgetKit
 import SwiftUI
 
-struct GoalWidget: Widget {
-    let kind: String = "GoalWidget"
+struct CatalistWidget: Widget {
+    let kind: String = "Catalist"
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: GoalTimelineProvider()) { entry in
-            GoalWidgetEntryView(entry: entry)
+            CatalistWidgetEntryView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
         }
-        .configurationDisplayName("Goal Tracker")
+        .configurationDisplayName("Catalist")
         .description("Track your daily and long-term goals with a reactive cat mascot")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
@@ -61,7 +61,7 @@ struct GoalTimelineProvider: TimelineProvider {
     }
     
     private func loadSnapshot() -> GoalEntry {
-        guard let appGroupURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.goalwidget") else {
+        guard let appGroupURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.catalist") else {
             return GoalEntry(date: Date(), topGoal: nil, mascot: MascotState(emotion: "neutral", frameIndex: 0))
         }
         
@@ -123,7 +123,7 @@ struct MascotState {
     let frameIndex: Int
 }
 
-struct GoalWidgetEntryView: View {
+struct CatalistWidgetEntryView: View {
     var entry: GoalTimelineProvider.Entry
     @Environment(\.widgetFamily) var family
 
@@ -199,7 +199,7 @@ struct SmallWidgetView: View {
             }
         }
         .padding()
-        .widgetURL(URL(string: entry.topGoal != nil ? "goalwidget://log?goalId=\(entry.topGoal!.id)" : "goalwidget://add"))
+        .widgetURL(URL(string: entry.topGoal != nil ? "catalist://log?goalId=\(entry.topGoal!.id)" : "catalist://add"))
     }
     
     func ctaText(for goal: TopGoal) -> String {
@@ -292,7 +292,7 @@ struct MediumWidgetView: View {
                     VStack(spacing: 10) {
                         MascotView(emotion: entry.mascot.emotion, frameIndex: entry.mascot.frameIndex)
                         
-                        Link(destination: URL(string: "goalwidget://add")!) {
+                        Link(destination: URL(string: "catalist://add")!) {
                             HStack(spacing: 4) {
                                 Image(systemName: "plus.circle.fill")
                                 Text("Add Goal")
@@ -430,7 +430,7 @@ struct MascotView: View {
 }
 
 #Preview(as: .systemSmall) {
-    GoalWidget()
+    CatalistWidget()
 } timeline: {
     GoalEntry(
         date: Date(),
@@ -449,7 +449,7 @@ struct MascotView: View {
 }
 
 #Preview(as: .systemMedium) {
-    GoalWidget()
+    CatalistWidget()
 } timeline: {
     GoalEntry(
         date: Date(),
@@ -468,7 +468,7 @@ struct MascotView: View {
 }
 
 #Preview("Empty State - Small", as: .systemSmall) {
-    GoalWidget()
+    CatalistWidget()
 } timeline: {
     GoalEntry(
         date: Date(),
@@ -478,7 +478,7 @@ struct MascotView: View {
 }
 
 #Preview("Empty State - Medium", as: .systemMedium) {
-    GoalWidget()
+    CatalistWidget()
 } timeline: {
     GoalEntry(
         date: Date(),
@@ -488,7 +488,7 @@ struct MascotView: View {
 }
 
 #Preview("Urgent Goal", as: .systemSmall) {
-    GoalWidget()
+    CatalistWidget()
 } timeline: {
     GoalEntry(
         date: Date(),

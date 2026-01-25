@@ -1,4 +1,4 @@
-package com.goalwidget
+package com.catalist
 
 import android.content.Context
 import android.content.Intent
@@ -32,7 +32,7 @@ class LogGoalAction : ActionCallback {
             file.writeText(actionData.toString())
 
             // Open app to process action
-            val intent = Intent(context, Class.forName("com.goalwidget.MainActivity")).apply {
+            val intent = Intent(context, Class.forName("com.catalist.MainActivity")).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                 putExtra("action", "log_progress")
                 putExtra("goalId", goalId)

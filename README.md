@@ -1,4 +1,4 @@
-Goal Widget App
+Catalist Widget App
 
 A widget-first goal tracking application featuring a reactive cat mascot, inspired by Duolingo's emotion-driven coaching model.
 
@@ -211,12 +211,12 @@ lib/
 
 ios/
  └── GoalWidget/
-     ├── GoalWidget.swift
+     ├── GoalWidget.swift (CatalistWidget)
      └── LogGoalIntent.swift
 
 android/
- └── goalwidget/
-     ├── GoalWidget.kt
+ └── catalist/
+     ├── GoalWidget.kt (CatalistWidget)
      └── LogGoalAction.kt
 
 
