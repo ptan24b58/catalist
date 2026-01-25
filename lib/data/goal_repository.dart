@@ -72,10 +72,7 @@ class GoalRepository {
 
   /// Delete a goal
   Future<void> deleteGoal(String id) async {
-    if (id.isEmpty) {
-      throw ArgumentError('Goal ID cannot be empty');
-    }
-
+    if (id.isEmpty) throw ArgumentError('Goal ID cannot be empty');
     try {
       final goals = await getAllGoals();
       goals.removeWhere((g) => g.id == id);
@@ -91,22 +88,22 @@ class GoalRepository {
     final goals = await getAllGoals();
     try {
       return goals.firstWhere((g) => g.id == id);
-    } catch (e) {
+    } catch (_) {
       return null;
     }
   }
 
+  /// Helper to get and validate goal
+  Future<Goal> _getGoalOrThrow(String goalId) async {
+    if (goalId.isEmpty) throw ArgumentError('Goal ID cannot be empty');
+    final goal = await getGoalById(goalId);
+    if (goal == null) throw Exception(AppConstants.errorGoalNotFound);
+    return goal;
+  }
+
   /// Log progress for a daily completion goal
   Future<Goal> logDailyCompletion(String goalId, DateTime completedAt) async {
-    if (goalId.isEmpty) {
-      throw ArgumentError('Goal ID cannot be empty');
-    }
-
-    final goal = await getGoalById(goalId);
-    if (goal == null) {
-      throw Exception(AppConstants.errorGoalNotFound);
-    }
-
+    final goal = await _getGoalOrThrow(goalId);
     if (goal.goalType != GoalType.daily) {
       throw Exception('Cannot log daily completion for long-term goal');
     }
@@ -157,15 +154,7 @@ class GoalRepository {
   /// Log numeric progress for daily numeric goals
   Future<Goal> logDailyNumericProgress(
       String goalId, double amount, DateTime completedAt) async {
-    if (goalId.isEmpty) {
-      throw ArgumentError('Goal ID cannot be empty');
-    }
-
-    final goal = await getGoalById(goalId);
-    if (goal == null) {
-      throw Exception(AppConstants.errorGoalNotFound);
-    }
-
+    final goal = await _getGoalOrThrow(goalId);
     if (goal.progressType != ProgressType.numeric) {
       throw Exception('Goal is not a numeric progress type');
     }
@@ -187,15 +176,7 @@ class GoalRepository {
 
   /// Update numeric progress (set absolute value) for long-term goals
   Future<Goal> updateNumericProgress(String goalId, double newValue) async {
-    if (goalId.isEmpty) {
-      throw ArgumentError('Goal ID cannot be empty');
-    }
-
-    final goal = await getGoalById(goalId);
-    if (goal == null) {
-      throw Exception(AppConstants.errorGoalNotFound);
-    }
-
+    final goal = await _getGoalOrThrow(goalId);
     if (goal.progressType != ProgressType.numeric) {
       throw Exception('Goal is not a numeric progress type');
     }
@@ -211,15 +192,7 @@ class GoalRepository {
 
   /// Update percentage progress for long-term goals
   Future<Goal> updatePercentage(String goalId, double newPercent) async {
-    if (goalId.isEmpty) {
-      throw ArgumentError('Goal ID cannot be empty');
-    }
-
-    final goal = await getGoalById(goalId);
-    if (goal == null) {
-      throw Exception(AppConstants.errorGoalNotFound);
-    }
-
+    final goal = await _getGoalOrThrow(goalId);
     if (goal.progressType != ProgressType.percentage) {
       throw Exception('Goal is not a percentage progress type');
     }
@@ -236,15 +209,7 @@ class GoalRepository {
 
   /// Toggle milestone completion
   Future<Goal> toggleMilestone(String goalId, String milestoneId) async {
-    if (goalId.isEmpty) {
-      throw ArgumentError('Goal ID cannot be empty');
-    }
-
-    final goal = await getGoalById(goalId);
-    if (goal == null) {
-      throw Exception(AppConstants.errorGoalNotFound);
-    }
-
+    final goal = await _getGoalOrThrow(goalId);
     if (goal.progressType != ProgressType.milestones) {
       throw Exception('Goal is not a milestone progress type');
     }
@@ -274,15 +239,7 @@ class GoalRepository {
 
   /// Add a new milestone to a goal
   Future<Goal> addMilestone(String goalId, String milestoneTitle) async {
-    if (goalId.isEmpty) {
-      throw ArgumentError('Goal ID cannot be empty');
-    }
-
-    final goal = await getGoalById(goalId);
-    if (goal == null) {
-      throw Exception(AppConstants.errorGoalNotFound);
-    }
-
+    final goal = await _getGoalOrThrow(goalId);
     if (goal.progressType != ProgressType.milestones) {
       throw Exception('Goal is not a milestone progress type');
     }
@@ -303,15 +260,7 @@ class GoalRepository {
 
   /// Remove a milestone from a goal
   Future<Goal> removeMilestone(String goalId, String milestoneId) async {
-    if (goalId.isEmpty) {
-      throw ArgumentError('Goal ID cannot be empty');
-    }
-
-    final goal = await getGoalById(goalId);
-    if (goal == null) {
-      throw Exception(AppConstants.errorGoalNotFound);
-    }
-
+    final goal = await _getGoalOrThrow(goalId);
     if (goal.progressType != ProgressType.milestones) {
       throw Exception('Goal is not a milestone progress type');
     }
@@ -328,15 +277,7 @@ class GoalRepository {
 
   /// Mark a long-term completion goal as complete
   Future<Goal> markLongTermComplete(String goalId) async {
-    if (goalId.isEmpty) {
-      throw ArgumentError('Goal ID cannot be empty');
-    }
-
-    final goal = await getGoalById(goalId);
-    if (goal == null) {
-      throw Exception(AppConstants.errorGoalNotFound);
-    }
-
+    final goal = await _getGoalOrThrow(goalId);
     if (goal.goalType != GoalType.longTerm) {
       throw Exception('Goal is not a long-term goal');
     }

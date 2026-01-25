@@ -31,7 +31,7 @@ class WidgetActionHandler {
     if (kIsWeb) return false;
     try {
       return io.Platform.isIOS;
-    } catch (e) {
+    } catch (_) {
       return false;
     }
   }
@@ -40,7 +40,7 @@ class WidgetActionHandler {
     if (kIsWeb) return false;
     try {
       return io.Platform.isAndroid;
-    } catch (e) {
+    } catch (_) {
       return false;
     }
   }

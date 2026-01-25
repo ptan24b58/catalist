@@ -26,29 +26,17 @@ class MascotEngine {
   ) {
     // Check if we should revert from celebrate
     if (currentState != null) {
-      final resolved =
-          currentState.resolve(now, _getDefaultEmotion(goal, now));
-      if (resolved.emotion != currentState.emotion) {
-        return resolved;
-      }
-      // Still in celebrate state
-      if (currentState.emotion == MascotEmotion.celebrate) {
-        return currentState;
-      }
+      final resolved = currentState.resolve(now, _getDefaultEmotion(goal, now));
+      if (resolved.emotion != currentState.emotion) return resolved;
+      if (currentState.emotion == MascotEmotion.celebrate) return currentState;
     }
 
     // Compute default emotion from urgency
     final urgency = UrgencyEngine.calculateUrgency(goal, now);
     final emotion = emotionFromUrgency(urgency);
+    final frameIndex = currentState != null ? ((currentState.frameIndex + 1) % 2) : 0;
 
-    // Cycle frame index for animation effect
-    final frameIndex =
-        currentState != null ? ((currentState.frameIndex + 1) % 2) : 0;
-
-    return MascotState(
-      emotion: emotion,
-      frameIndex: frameIndex,
-    );
+    return MascotState(emotion: emotion, frameIndex: frameIndex);
   }
 
   /// Create celebrate state (triggered after logging progress)

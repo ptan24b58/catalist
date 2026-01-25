@@ -105,11 +105,8 @@ class UrgencyEngine {
   }
 
   /// Get the time window for daily goals (full day)
-  static Duration _getDailyTimeWindow(DateTime now) {
-    final startOfDay = DateUtils.normalizeToDay(now);
-    final endOfDay = startOfDay.add(const Duration(days: 1));
-    return endOfDay.difference(startOfDay);
-  }
+  static Duration _getDailyTimeWindow(DateTime now) =>
+      const Duration(days: 1);
 
   /// Find the most urgent goal from a list
   static Goal? findMostUrgent(List<Goal> goals, DateTime now) {

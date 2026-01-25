@@ -1,49 +1,40 @@
 import '../domain/goal.dart';
 
-/// Centralized progress label formatting to avoid duplication
+/// Centralized progress label formatting
 class ProgressFormatter {
-  ProgressFormatter._(); // Private constructor
+  ProgressFormatter._();
 
   /// Get human-readable progress label for a goal
   static String getProgressLabel(Goal goal, {DateTime? now}) {
-    switch (goal.progressType) {
-      case ProgressType.completion:
-        return goal.isCompleted ? 'Done' : 'Not done';
-      case ProgressType.percentage:
-        return '${goal.percentComplete.toInt()}%';
-      case ProgressType.milestones:
-        return '${goal.completedMilestones}/${goal.milestones.length}';
-      case ProgressType.numeric:
-        return _formatNumericProgress(goal, now: now);
-    }
+    return switch (goal.progressType) {
+      ProgressType.completion => goal.isCompleted ? 'Done' : 'Not done',
+      ProgressType.percentage => '${goal.percentComplete.toInt()}%',
+      ProgressType.milestones =>
+        '${goal.completedMilestones}/${goal.milestones.length}',
+      ProgressType.numeric => _formatNumeric(goal, now, detailed: false),
+    };
   }
 
   /// Get detailed progress label for list views
   static String getDetailedProgressLabel(Goal goal, {DateTime? now}) {
-    switch (goal.progressType) {
-      case ProgressType.completion:
-        return goal.isCompleted ? 'Completed' : 'Not completed';
-      case ProgressType.percentage:
-        return '${goal.percentComplete.toInt()}%';
-      case ProgressType.milestones:
-        return '${goal.completedMilestones}/${goal.milestones.length} milestones';
-      case ProgressType.numeric:
-        return _formatDetailedNumericProgress(goal, now: now);
-    }
+    return switch (goal.progressType) {
+      ProgressType.completion => goal.isCompleted ? 'Completed' : 'Not completed',
+      ProgressType.percentage => '${goal.percentComplete.toInt()}%',
+      ProgressType.milestones =>
+        '${goal.completedMilestones}/${goal.milestones.length} milestones',
+      ProgressType.numeric => _formatNumeric(goal, now, detailed: true),
+    };
   }
 
-  static String _formatNumericProgress(Goal goal, {DateTime? now}) {
+  static String _formatNumeric(Goal goal, DateTime? now, {required bool detailed}) {
     final unit = goal.unit ?? '';
-    return '${goal.currentValue.toStringAsFixed(0)}/${goal.targetValue?.toStringAsFixed(0) ?? '?'} $unit'
-        .trim();
-  }
+    final current = goal.currentValue.toStringAsFixed(0);
+    final target = goal.targetValue?.toStringAsFixed(0) ?? '?';
 
-  static String _formatDetailedNumericProgress(Goal goal, {DateTime? now}) {
-    final unit = goal.unit ?? '';
-    if (goal.goalType == GoalType.daily && now != null) {
-      final todayProgress = goal.getProgressToday(now).toInt();
-      return '$todayProgress/${goal.dailyTarget} $unit today';
+    if (detailed && goal.goalType == GoalType.daily && now != null) {
+      final today = goal.getProgressToday(now).toInt();
+      return '$today/${goal.dailyTarget} $unit today';
     }
-    return '${goal.currentValue.toStringAsFixed(0)}/${goal.targetValue?.toStringAsFixed(0) ?? '?'} $unit';
+    return '$current/$target $unit'.trim();
   }
 }

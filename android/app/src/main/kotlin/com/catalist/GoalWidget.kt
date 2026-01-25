@@ -9,12 +9,14 @@ import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.action.actionParametersOf
+import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.provideContent
+import android.content.Intent
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.background
 import androidx.glance.layout.*
@@ -138,7 +140,17 @@ fun CatalistWidgetContent(context: Context) {
             }
         } else {
             // No goals state - consistent with goal state layout
-            Box(modifier = GlanceModifier.fillMaxSize()) {
+            Box(
+                modifier = GlanceModifier
+                    .fillMaxSize()
+                    .clickable(
+                        onClick = actionStartActivity(
+                            Intent(context, Class.forName("com.catalist.MainActivity")).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            }
+                        )
+                    )
+            ) {
                 // Cat image - fills the widget (same as goal state)
                 Column(
                     modifier = GlanceModifier.fillMaxSize(),

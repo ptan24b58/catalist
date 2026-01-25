@@ -13,10 +13,8 @@ import '../utils/progress_formatter.dart';
 /// Service for generating and storing widget snapshots
 class WidgetSnapshotService {
   static const String _snapshotKey = 'widget_snapshot';
-  
   final GoalRepository _goalRepository;
 
-  /// Constructor with dependency injection
   WidgetSnapshotService(this._goalRepository);
 
   /// Generate and save a new snapshot
@@ -61,11 +59,10 @@ class WidgetSnapshotService {
 
   /// Create empty snapshot when no goals exist
   Future<WidgetSnapshot> _createEmptySnapshot(DateTime now) async {
-    const mascot = MascotState(emotion: MascotEmotion.neutral);
     final snapshot = WidgetSnapshot(
       version: AppConstants.snapshotVersion,
       generatedAt: now.millisecondsSinceEpoch ~/ 1000,
-      mascot: mascot,
+      mascot: const MascotState(emotion: MascotEmotion.neutral),
     );
     await _saveSnapshot(snapshot);
     return snapshot;
@@ -73,13 +70,11 @@ class WidgetSnapshotService {
 
   /// Create TopGoal from Goal model
   TopGoal _createTopGoal(Goal goal, double urgency, DateTime now) {
-    final progress = goal.getProgress();
     final nextDue = goal.getNextDueTime(now);
-    
     return TopGoal(
       id: goal.id,
       title: goal.title,
-      progress: progress,
+      progress: goal.getProgress(),
       goalType: goal.goalType.name,
       progressType: goal.progressType.name,
       nextDueEpoch: nextDue != null ? (nextDue.millisecondsSinceEpoch ~/ 1000) : null,
