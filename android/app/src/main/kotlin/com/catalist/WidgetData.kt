@@ -36,33 +36,14 @@ fun loadSnapshot(context: Context): WidgetSnapshot? {
     return try {
         val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
         val snapshotJson = prefs.getString("flutter.widget_snapshot", null)
-        val timestamp = System.currentTimeMillis()
-        Log.d("WidgetData", "🔍 Loading snapshot at $timestamp")
-        Log.d("WidgetData", "📄 Snapshot JSON length: ${snapshotJson?.length ?: 0}")
+        
         if (snapshotJson != null) {
-            // Extract generatedAt from JSON to compare
-            try {
-                val obj = org.json.JSONObject(snapshotJson)
-                val generatedAt = obj.optLong("generatedAt", 0)
-                Log.d("WidgetData", "📅 Snapshot generatedAt: $generatedAt (current time: ${timestamp / 1000})")
-            } catch (e: Exception) {
-                // Ignore parsing error for timestamp
-            }
-            
-            Log.d("WidgetData", "📄 Snapshot JSON: $snapshotJson")
-            val parsed = parseSnapshot(snapshotJson)
-            if (parsed != null) {
-                Log.d("WidgetData", "✅ Parsed snapshot - version: ${parsed.version}, generatedAt: ${parsed.generatedAt}, emotion: ${parsed.mascot.emotion}, topGoal: ${parsed.topGoal?.title ?: "null"}")
-            } else {
-                Log.e("WidgetData", "❌ Failed to parse snapshot")
-            }
-            parsed
+            parseSnapshot(snapshotJson)
         } else {
-            Log.w("WidgetData", "⚠️ No snapshot found in SharedPreferences")
             null
         }
     } catch (e: Exception) {
-        Log.e("WidgetData", "❌ Error loading snapshot", e)
+        Log.e("WidgetData", "Error loading snapshot", e)
         null
     }
 }

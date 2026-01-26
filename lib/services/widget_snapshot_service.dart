@@ -106,33 +106,7 @@ class WidgetSnapshotService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final encoded = jsonEncode(snapshot.toJson());
-      final success = await prefs.setString(_snapshotKey, encoded);
-      
-      // Log the JSON snapshot for debugging
-      print('📦 [WIDGET] Widget snapshot saved (success: $success):');
-      print('📦 [WIDGET] JSON: $encoded');
-      
-      // Wait a bit for SharedPreferences to flush to disk
-      await Future.delayed(const Duration(milliseconds: 50));
-      
-      // Verify it was saved and wait for it to be readable
-      int retries = 0;
-      String? verify;
-      while (retries < 5) {
-        verify = prefs.getString(_snapshotKey);
-        if (verify == encoded) {
-          print('✅ [WIDGET] Snapshot verified in SharedPreferences (attempt ${retries + 1})');
-          break;
-        }
-        retries++;
-        await Future.delayed(const Duration(milliseconds: 50));
-      }
-      
-      if (verify != encoded) {
-        print('⚠️ [WIDGET] Snapshot verification failed after $retries retries!');
-        print('⚠️ [WIDGET] Expected: ${encoded.substring(0, encoded.length > 100 ? 100 : encoded.length)}...');
-        print('⚠️ [WIDGET] Got: ${verify?.substring(0, (verify?.length ?? 0) > 100 ? 100 : (verify?.length ?? 0))}...');
-      }
+      await prefs.setString(_snapshotKey, encoded);
     } catch (e, stackTrace) {
       AppLogger.error('Failed to save widget snapshot', e, stackTrace);
       rethrow;

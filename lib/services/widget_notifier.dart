@@ -8,18 +8,13 @@ class WidgetNotifier {
 
   /// Notify native widget to refresh
   static Future<void> notifyWidgetUpdate() async {
-    if (kIsWeb) {
-      AppLogger.debug('Widget notification skipped (web platform)');
-      return;
-    }
+    if (kIsWeb) return;
 
     try {
-      print('📡 [WIDGET] Sending update notification to native widget...');
       await _channel.invokeMethod('updateWidget');
-      print('✅ [WIDGET] Widget update notification sent to native');
     } catch (e) {
-      // Method channel might not be set up yet, log but don't fail
-      print('⚠️ [WIDGET] Widget update notification failed (may not be set up): $e');
+      // Method channel might not be set up yet, silently fail
+      AppLogger.debug('Widget update notification failed: $e');
     }
   }
 }

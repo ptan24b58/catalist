@@ -9,15 +9,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize services early to ensure WidgetUpdateEngine is registered
-  // This ensures the listener is set up before any goal operations
   try {
-    // Access widgetUpdateEngine to trigger initialization
-    final engine = widgetUpdateEngine;
-    print('✅ [INIT] WidgetUpdateEngine accessed and should be initialized');
-    
-    // Verify the repository has a listener registered
-    // We can't directly check, but accessing the engine should have registered it
-    print('✅ [INIT] Services initialized - ready to track goal changes');
+    final _ = widgetUpdateEngine; // Trigger initialization
   } catch (e, stackTrace) {
     AppLogger.error('Error initializing WidgetUpdateEngine', e, stackTrace);
   }

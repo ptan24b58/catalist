@@ -31,9 +31,7 @@ class GoalRepository {
     required String? goalId,
     required bool isCelebration,
   }) async {
-    print('📢 [REPO] Notifying change: $event (goalId: $goalId, celebration: $isCelebration)');
     if (_onGoalChanged != null) {
-      print('📢 [REPO] Callback registered, calling listener...');
       try {
         await _onGoalChanged!(
           event: event,
@@ -41,14 +39,20 @@ class GoalRepository {
           goalId: goalId,
           isCelebration: isCelebration,
         );
-        print('📢 [REPO] Callback completed successfully');
       } catch (e, stackTrace) {
-        print('❌ [REPO] Error in goal change callback: $e');
         AppLogger.error('Error in goal change callback', e, stackTrace);
       }
-    } else {
-      print('⚠️ [REPO] No callback registered! WidgetUpdateEngine may not be initialized.');
     }
+  }
+
+  /// Helper to notify progress logged with completion check
+  Future<void> _notifyProgressLogged(Goal goal, bool isCompleted) async {
+    await _notifyChange(
+      event: 'progress_logged',
+      goal: goal,
+      goalId: goal.id,
+      isCelebration: isCompleted,
+    );
   }
 
   /// Get all goals
@@ -237,16 +241,7 @@ class GoalRepository {
         lastCompletedAt: completedAt,
       );
       await saveGoal(updatedGoal);
-
-      // Check if goal is completed
-      final isCompleted = goal.targetValue != null && newValue >= goal.targetValue!;
-      await _notifyChange(
-        event: 'progress_logged',
-        goal: updatedGoal,
-        goalId: updatedGoal.id,
-        isCelebration: isCompleted,
-      );
-
+      await _notifyProgressLogged(updatedGoal, goal.targetValue != null && newValue >= goal.targetValue!);
       return updatedGoal;
     }
   }
@@ -263,18 +258,9 @@ class GoalRepository {
       lastCompletedAt: DateTime.now(),
     );
 
-    await saveGoal(updatedGoal);
-
-    // Check if goal is completed
-    final isCompleted = goal.targetValue != null && newValue >= goal.targetValue!;
-    await _notifyChange(
-      event: 'progress_logged',
-      goal: updatedGoal,
-      goalId: updatedGoal.id,
-      isCelebration: isCompleted,
-    );
-
-    return updatedGoal;
+      await saveGoal(updatedGoal);
+      await _notifyProgressLogged(updatedGoal, goal.targetValue != null && newValue >= goal.targetValue!);
+      return updatedGoal;
   }
 
   /// Update percentage progress for long-term goals
@@ -291,16 +277,7 @@ class GoalRepository {
     );
 
     await saveGoal(updatedGoal);
-
-    // Check if goal is completed
-    final isCompleted = clampedPercent >= 100;
-    await _notifyChange(
-      event: 'progress_logged',
-      goal: updatedGoal,
-      goalId: updatedGoal.id,
-      isCelebration: isCompleted,
-    );
-
+    await _notifyProgressLogged(updatedGoal, clampedPercent >= 100);
     return updatedGoal;
   }
 
@@ -331,16 +308,7 @@ class GoalRepository {
     );
 
     await saveGoal(updatedGoal);
-
-    // Check if all milestones are completed
-    final allComplete = updatedMilestones.every((m) => m.completed);
-    await _notifyChange(
-      event: 'progress_logged',
-      goal: updatedGoal,
-      goalId: updatedGoal.id,
-      isCelebration: allComplete,
-    );
-
+    await _notifyProgressLogged(updatedGoal, updatedMilestones.every((m) => m.completed));
     return updatedGoal;
   }
 
@@ -430,15 +398,7 @@ class GoalRepository {
     }
 
     await saveGoal(updatedGoal);
-
-    // Notify listeners of completion
-    await _notifyChange(
-      event: 'progress_logged',
-      goal: updatedGoal,
-      goalId: updatedGoal.id,
-      isCelebration: true,
-    );
-
+    await _notifyProgressLogged(updatedGoal, true);
     return updatedGoal;
   }
 

@@ -37,43 +37,35 @@ class MainActivity: FlutterActivity() {
             val widgetProvider = ComponentName(this, TraditionalWidgetProvider::class.java)
             val widgetIds = appWidgetManager.getAppWidgetIds(widgetProvider)
             
-            if (widgetIds.isNotEmpty()) {
-                Log.d("MainActivity", "Triggering widget update for ${widgetIds.size} widget(s)")
-                
-                // Wait a bit to ensure SharedPreferences is flushed
-                CoroutineScope(Dispatchers.Main).launch {
-                    try {
-                        Log.d("MainActivity", "🔄 Updating traditional widget...")
-                        // Wait to ensure SharedPreferences is flushed to disk
-                        kotlinx.coroutines.delay(300)
-                        
-                        // Update each widget directly - this always works with traditional widgets
-                        widgetIds.forEach { widgetId ->
-                            try {
-                                TraditionalWidgetProvider.updateAppWidget(
-                                    this@MainActivity,
-                                    appWidgetManager,
-                                    widgetId
-                                )
-                                Log.d("MainActivity", "✅ Widget $widgetId updated")
-                            } catch (e: Exception) {
-                                Log.e("MainActivity", "❌ Error updating widget $widgetId", e)
-                            }
+            if (widgetIds.isEmpty()) return
+            
+            CoroutineScope(Dispatchers.Main).launch {
+                try {
+                    // Wait for SharedPreferences to flush
+                    kotlinx.coroutines.delay(300)
+                    
+                    // Update each widget
+                    widgetIds.forEach { widgetId ->
+                        try {
+                            TraditionalWidgetProvider.updateAppWidget(
+                                this@MainActivity,
+                                appWidgetManager,
+                                widgetId
+                            )
+                        } catch (e: Exception) {
+                            Log.e("MainActivity", "Error updating widget $widgetId", e)
                         }
-                        
-                        // Also send broadcast as backup
-                        val intent = android.content.Intent(this@MainActivity, TraditionalWidgetProvider::class.java).apply {
-                            action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
-                            putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, widgetIds)
-                        }
-                        sendBroadcast(intent)
-                        Log.d("MainActivity", "📡 Sent broadcast intent")
-                    } catch (e: Exception) {
-                        Log.e("MainActivity", "❌ Error updating widget", e)
                     }
+                    
+                    // Send broadcast as backup
+                    val intent = android.content.Intent(this@MainActivity, TraditionalWidgetProvider::class.java).apply {
+                        action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
+                        putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, widgetIds)
+                    }
+                    sendBroadcast(intent)
+                } catch (e: Exception) {
+                    Log.e("MainActivity", "Error updating widget", e)
                 }
-            } else {
-                Log.d("MainActivity", "No widgets to update")
             }
         } catch (e: Exception) {
             Log.e("MainActivity", "Error updating widget", e)

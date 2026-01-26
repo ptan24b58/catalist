@@ -124,7 +124,7 @@ iOS
 	•	App Group–based shared storage
 
 Android
-	•	Kotlin and Jetpack Glance
+	•	Kotlin and AppWidgetProvider
 	•	ActionCallback-based widget interactions
 	•	DataStore or SharedPreferences
 

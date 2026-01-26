@@ -80,25 +80,13 @@ class WidgetActionHandler {
   }
 
   Future<void> _processAction(Map<String, dynamic> action) async {
-    try {
-      final actionType = action['action'] as String?;
-      final goalId = action['goalId'] as String?;
+    final actionType = action['action'] as String?;
+    final goalId = action['goalId'] as String?;
 
-      if (actionType == 'log_progress' && goalId != null) {
-        // Validate goal ID before processing
-        if (!Validation.isValidGoalId(goalId)) {
-          AppLogger.warning('Invalid goal ID in action: $goalId');
-          return;
-        }
-
-        await goalRepository.logDailyCompletion(goalId, DateTime.now());
-        // Snapshot automatically updated by WidgetUpdateEngine
-      } else {
-        AppLogger.warning('Unknown action type or missing goal ID: $action');
-      }
-    } catch (e, stackTrace) {
-      AppLogger.error('Error processing action', e, stackTrace);
-      rethrow;
+    if (actionType == 'log_progress' && goalId != null) {
+      await _logProgress(goalId);
+    } else {
+      AppLogger.warning('Unknown action type or missing goal ID: $action');
     }
   }
 
@@ -109,11 +97,15 @@ class WidgetActionHandler {
       return;
     }
 
+    await _logProgress(goalId);
+  }
+
+  /// Helper to log progress for a goal
+  Future<void> _logProgress(String goalId) async {
     try {
       await goalRepository.logDailyCompletion(goalId, DateTime.now());
-      // Snapshot automatically updated by WidgetUpdateEngine
     } catch (e, stackTrace) {
-      AppLogger.error('Error processing deep link', e, stackTrace);
+      AppLogger.error('Error logging progress', e, stackTrace);
       rethrow;
     }
   }

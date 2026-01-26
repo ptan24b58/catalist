@@ -29,7 +29,6 @@
      - Ensure the extension uses the same App Group
 
 3. **Android Setup:**
-   - Ensure `android/app/build.gradle` includes Glance dependencies
    - The widget receiver is already configured in `AndroidManifest.xml`
    - Build the app: `flutter build apk` or `flutter build appbundle`
 
