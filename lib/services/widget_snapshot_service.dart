@@ -4,6 +4,7 @@ import '../domain/goal.dart';
 import '../domain/mascot_state.dart';
 import '../logic/urgency_engine.dart';
 import '../logic/mascot_engine.dart';
+import '../logic/cta_engine.dart';
 import '../data/goal_repository.dart';
 import '../models/widget_snapshot.dart';
 import '../utils/constants.dart';
@@ -46,11 +47,19 @@ class WidgetSnapshotService {
     // Create top goal data
     final topGoal = _createTopGoal(mostUrgentGoal, maxUrgency, now);
 
+    // Generate dynamic CTA
+    final cta = CTAEngine.generateCTA(
+      topGoal: topGoal,
+      mascot: mascot,
+      now: now,
+    );
+
     final snapshot = WidgetSnapshot(
       version: AppConstants.snapshotVersion,
       generatedAt: now.millisecondsSinceEpoch ~/ 1000,
       topGoal: topGoal,
       mascot: mascot,
+      cta: cta,
     );
 
     await _saveSnapshot(snapshot);
@@ -59,10 +68,17 @@ class WidgetSnapshotService {
 
   /// Create empty snapshot when no goals exist
   Future<WidgetSnapshot> _createEmptySnapshot(DateTime now) async {
+    final cta = CTAEngine.generateCTA(
+      topGoal: null,
+      mascot: const MascotState(emotion: MascotEmotion.neutral),
+      now: now,
+    );
+
     final snapshot = WidgetSnapshot(
       version: AppConstants.snapshotVersion,
       generatedAt: now.millisecondsSinceEpoch ~/ 1000,
       mascot: const MascotState(emotion: MascotEmotion.neutral),
+      cta: cta,
     );
     await _saveSnapshot(snapshot);
     return snapshot;

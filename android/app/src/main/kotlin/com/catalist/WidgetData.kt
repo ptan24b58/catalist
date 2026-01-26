@@ -9,7 +9,8 @@ data class WidgetSnapshot(
     val version: Int,
     val generatedAt: Long,
     val topGoal: TopGoal?,
-    val mascot: MascotState
+    val mascot: MascotState,
+    val cta: String? = null
 )
 
 data class TopGoal(
@@ -75,7 +76,8 @@ fun parseSnapshot(json: String): WidgetSnapshot? {
             version = obj.getInt("version"),
             generatedAt = obj.getLong("generatedAt"),
             topGoal = topGoal,
-            mascot = mascot
+            mascot = mascot,
+            cta = if (obj.has("cta") && !obj.isNull("cta")) obj.getString("cta") else null
         )
     } catch (e: Exception) {
         Log.e("WidgetData", "Error parsing snapshot", e)

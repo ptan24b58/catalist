@@ -34,7 +34,7 @@ class MainActivity: FlutterActivity() {
     private fun updateWidget() {
         try {
             val appWidgetManager = AppWidgetManager.getInstance(this)
-            val widgetProvider = ComponentName(this, TraditionalWidgetProvider::class.java)
+            val widgetProvider = ComponentName(this, CatalistWidgetProvider::class.java)
             val widgetIds = appWidgetManager.getAppWidgetIds(widgetProvider)
             
             if (widgetIds.isEmpty()) return
@@ -47,7 +47,7 @@ class MainActivity: FlutterActivity() {
                     // Update each widget
                     widgetIds.forEach { widgetId ->
                         try {
-                            TraditionalWidgetProvider.updateAppWidget(
+                            CatalistWidgetProvider.updateAppWidget(
                                 this@MainActivity,
                                 appWidgetManager,
                                 widgetId
@@ -58,7 +58,7 @@ class MainActivity: FlutterActivity() {
                     }
                     
                     // Send broadcast as backup
-                    val intent = android.content.Intent(this@MainActivity, TraditionalWidgetProvider::class.java).apply {
+                    val intent = android.content.Intent(this@MainActivity, CatalistWidgetProvider::class.java).apply {
                         action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
                         putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, widgetIds)
                     }

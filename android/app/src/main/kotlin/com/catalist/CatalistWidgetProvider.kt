@@ -8,7 +8,7 @@ import android.util.Log
 import android.widget.RemoteViews
 import org.json.JSONObject
 
-class TraditionalWidgetProvider : AppWidgetProvider() {
+class CatalistWidgetProvider : AppWidgetProvider() {
 
     override fun onUpdate(
         context: Context,
@@ -26,7 +26,7 @@ class TraditionalWidgetProvider : AppWidgetProvider() {
         if (intent.action == AppWidgetManager.ACTION_APPWIDGET_UPDATE) {
             val appWidgetManager = AppWidgetManager.getInstance(context)
             val appWidgetIds = appWidgetManager.getAppWidgetIds(
-                android.content.ComponentName(context, TraditionalWidgetProvider::class.java)
+                android.content.ComponentName(context, CatalistWidgetProvider::class.java)
             )
             onUpdate(context, appWidgetManager, appWidgetIds)
         }
@@ -44,8 +44,11 @@ class TraditionalWidgetProvider : AppWidgetProvider() {
             if (snapshot != null && snapshot.topGoal != null) {
                 val goal = snapshot.topGoal!!
                 
-                views.setTextViewText(R.id.progress_label, goal.progressLabel ?: "${(goal.progress * 100).toInt()}%")
                 views.setInt(R.id.widget_container, "setBackgroundColor", getEmotionColorRes(snapshot.mascot.emotion))
+                
+                // Set CTA text
+                val ctaText = snapshot.cta ?: "Let's go!"
+                views.setTextViewText(R.id.cta_text, ctaText)
                 
                 val clickIntent = Intent(context, MainActivity::class.java).apply {
                     putExtra("action", "log_progress")
@@ -60,8 +63,11 @@ class TraditionalWidgetProvider : AppWidgetProvider() {
                     )
                 )
             } else {
-                views.setTextViewText(R.id.progress_label, "Add a goal!")
                 views.setInt(R.id.widget_container, "setBackgroundColor", 0xFFE6F0F9.toInt())
+                
+                // Set CTA for empty state
+                val ctaText = snapshot?.cta ?: "Let's start!"
+                views.setTextViewText(R.id.cta_text, ctaText)
                 
                 val clickIntent = Intent(context, MainActivity::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
@@ -89,5 +95,6 @@ class TraditionalWidgetProvider : AppWidgetProvider() {
                 else -> 0xFFE6F0F9.toInt()         // Default to neutral
             }
         }
+        
     }
 }

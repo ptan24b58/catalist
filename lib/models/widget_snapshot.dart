@@ -6,12 +6,14 @@ class WidgetSnapshot {
   final int generatedAt;
   final TopGoal? topGoal;
   final MascotState mascot;
+  final String? cta; // Dynamic call-to-action message
 
   const WidgetSnapshot({
     required this.version,
     required this.generatedAt,
     this.topGoal,
     required this.mascot,
+    this.cta,
   });
 
   Map<String, dynamic> toJson() {
@@ -20,6 +22,7 @@ class WidgetSnapshot {
       'generatedAt': generatedAt,
       'topGoal': topGoal?.toJson(),
       'mascot': mascot.toJson(),
+      'cta': cta,
     };
   }
 
@@ -31,6 +34,7 @@ class WidgetSnapshot {
           ? TopGoal.fromJson(json['topGoal'] as Map<String, dynamic>)
           : null,
       mascot: MascotState.fromJson(json['mascot'] as Map<String, dynamic>),
+      cta: json['cta'] as String?,
     );
   }
 
@@ -39,12 +43,14 @@ class WidgetSnapshot {
     int? generatedAt,
     TopGoal? topGoal,
     MascotState? mascot,
+    String? cta,
   }) {
     return WidgetSnapshot(
       version: version ?? this.version,
       generatedAt: generatedAt ?? this.generatedAt,
       topGoal: topGoal ?? this.topGoal,
       mascot: mascot ?? this.mascot,
+      cta: cta ?? this.cta,
     );
   }
 }

@@ -17,7 +17,7 @@
 - ✅ **Widget Views**: Small and medium widget layouts
 
 ### Android Native Widget
-- ✅ **TraditionalWidgetProvider.kt**: AppWidgetProvider implementation
+- ✅ **CatalistWidgetProvider.kt**: AppWidgetProvider implementation
 - ✅ **Widget Actions**: PendingIntent-based widget interactions
 - ✅ **Widget Receiver**: Broadcast receiver for widget updates
 - ✅ **Android Configuration**: Manifest, widget info, layouts
