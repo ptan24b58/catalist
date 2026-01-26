@@ -92,7 +92,7 @@ class WidgetActionHandler {
         }
 
         await goalRepository.logDailyCompletion(goalId, DateTime.now());
-        await widgetSnapshotService.generateSnapshot(isCelebration: true);
+        // Snapshot automatically updated by WidgetUpdateEngine
       } else {
         AppLogger.warning('Unknown action type or missing goal ID: $action');
       }
@@ -111,7 +111,7 @@ class WidgetActionHandler {
 
     try {
       await goalRepository.logDailyCompletion(goalId, DateTime.now());
-      await widgetSnapshotService.generateSnapshot(isCelebration: true);
+      // Snapshot automatically updated by WidgetUpdateEngine
     } catch (e, stackTrace) {
       AppLogger.error('Error processing deep link', e, stackTrace);
       rethrow;

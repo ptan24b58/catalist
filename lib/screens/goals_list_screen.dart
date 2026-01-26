@@ -53,7 +53,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
           _isLoading = false;
         });
       }
-      await widgetSnapshotService.generateSnapshot();
+      // Snapshot automatically updated by WidgetUpdateEngine when goals change
     } catch (e, stackTrace) {
       AppLogger.error('Failed to load goals', e, stackTrace);
       if (mounted) {
@@ -68,6 +68,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
     try {
       if (goal.goalType == GoalType.daily) {
         await goalRepository.logDailyCompletion(goal.id, now);
+        // Snapshot automatically updated by WidgetUpdateEngine
       } else {
         // For long-term goals, navigate to detail for more complex progress updates
         if (mounted) {
@@ -81,7 +82,6 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
         await _loadGoals();
         return;
       }
-      await widgetSnapshotService.generateSnapshot(isCelebration: true);
       await _loadGoals();
 
       if (mounted) {
@@ -103,7 +103,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
   }
 
   Future<void> _refreshWidget() async {
-    await widgetSnapshotService.generateSnapshot();
+    await widgetUpdateEngine.forceUpdate();
     await _loadGoals();
     if (mounted) {
       SnackBarHelper.showInfo(context, AppConstants.successWidgetUpdated);
@@ -135,7 +135,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
     if (confirmed == true) {
       try {
         await goalRepository.deleteGoal(goal.id);
-        await widgetSnapshotService.generateSnapshot();
+        // Snapshot automatically updated by WidgetUpdateEngine
         await _loadGoals();
       } catch (e, stackTrace) {
         AppLogger.error('Failed to delete goal', e, stackTrace);

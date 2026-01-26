@@ -27,9 +27,9 @@
                 <data android:scheme="catalist" />
             </intent-filter>
         </activity>
-        <!-- Widget receiver -->
+        <!-- Widget receiver - Traditional AppWidgetProvider -->
         <receiver
-            android:name="com.catalist.CatalistWidgetReceiver"
+            android:name="com.catalist.TraditionalWidgetProvider"
             android:label="@string/widget_name"
             android:exported="true">
             <intent-filter>

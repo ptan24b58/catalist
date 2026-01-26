@@ -135,7 +135,7 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
       );
 
       await goalRepository.saveGoal(goal);
-      await widgetSnapshotService.generateSnapshot();
+      // Snapshot automatically updated by WidgetUpdateEngine
 
       if (mounted) {
         Navigator.pop(context);

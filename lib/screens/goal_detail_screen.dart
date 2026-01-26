@@ -54,7 +54,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
   Future<void> _logDailyCompletion() async {
     try {
       await goalRepository.logDailyCompletion(_goal.id, DateTime.now());
-      await widgetSnapshotService.generateSnapshot(isCelebration: true);
+      // Snapshot automatically updated by WidgetUpdateEngine
       await _loadGoal();
 
       if (mounted) {
@@ -74,9 +74,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
   Future<void> _updatePercentage() async {
     try {
       await goalRepository.updatePercentage(_goal.id, _percentageSliderValue);
-      await widgetSnapshotService.generateSnapshot(
-        isCelebration: _percentageSliderValue >= 100,
-      );
+      // Snapshot automatically updated by WidgetUpdateEngine
       await _loadGoal();
 
       if (mounted && _percentageSliderValue >= 100) {
@@ -103,9 +101,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     try {
       final newValue = _goal.currentValue + value;
       await goalRepository.updateNumericProgress(_goal.id, newValue);
-      await widgetSnapshotService.generateSnapshot(
-        isCelebration: _goal.targetValue != null && newValue >= _goal.targetValue!,
-      );
+      // Snapshot automatically updated by WidgetUpdateEngine
       _progressController.clear();
       await _loadGoal();
 
@@ -130,10 +126,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
   Future<void> _toggleMilestone(Milestone milestone) async {
     try {
       await goalRepository.toggleMilestone(_goal.id, milestone.id);
-      final allComplete = _goal.milestones.every(
-        (m) => m.id == milestone.id ? !milestone.completed : m.completed,
-      );
-      await widgetSnapshotService.generateSnapshot(isCelebration: allComplete);
+      // Snapshot automatically updated by WidgetUpdateEngine
       await _loadGoal();
     } catch (e, stackTrace) {
       AppLogger.error('Failed to toggle milestone', e, stackTrace);
@@ -370,7 +363,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
           ? _logDailyCompletion
           : () async {
               await goalRepository.markLongTermComplete(_goal.id);
-              await widgetSnapshotService.generateSnapshot(isCelebration: true);
+              // Snapshot automatically updated by WidgetUpdateEngine
               await _loadGoal();
             },
       icon: const Icon(Icons.check),

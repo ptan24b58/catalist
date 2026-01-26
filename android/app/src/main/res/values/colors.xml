@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Emotion colors - light backgrounds (15% opacity simulation) -->
+    <color name="emotion_happy_light">#E6F5E6</color>
+    <color name="emotion_neutral_light">#E6F0F9</color>
+    <color name="emotion_worried_light">#FFF4E6</color>
+    <color name="emotion_sad_light">#FFE6E6</color>
+    <color name="emotion_celebrate_light">#FFFBE6</color>
+</resources>

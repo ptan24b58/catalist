@@ -50,6 +50,11 @@ flutter {
 }
 
 dependencies {
+    // Compose runtime required for Compose Compiler
+    implementation("androidx.compose.runtime:runtime:1.5.4")
+    implementation("androidx.compose.ui:ui:1.5.4")
+    
+    // Glance dependencies for Glance widgets
     implementation("androidx.glance:glance-appwidget:1.1.1")
     implementation("androidx.glance:glance-material3:1.1.1")
 }

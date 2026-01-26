@@ -1,11 +1,26 @@
 import 'package:flutter/material.dart';
 import 'screens/goals_list_screen.dart';
+import 'services/service_locator.dart';
 import 'services/widget_action_handler.dart';
 import 'utils/app_colors.dart';
 import 'utils/logger.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize services early to ensure WidgetUpdateEngine is registered
+  // This ensures the listener is set up before any goal operations
+  try {
+    // Access widgetUpdateEngine to trigger initialization
+    final engine = widgetUpdateEngine;
+    print('✅ [INIT] WidgetUpdateEngine accessed and should be initialized');
+    
+    // Verify the repository has a listener registered
+    // We can't directly check, but accessing the engine should have registered it
+    print('✅ [INIT] Services initialized - ready to track goal changes');
+  } catch (e, stackTrace) {
+    AppLogger.error('Error initializing WidgetUpdateEngine', e, stackTrace);
+  }
 
   // Check for widget actions on app start
   try {

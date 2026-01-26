@@ -6,9 +6,50 @@ import '../utils/constants.dart';
 import '../utils/date_utils.dart';
 import '../utils/id_generator.dart';
 
+/// Callback type for goal change events
+typedef GoalChangeCallback = Future<void> Function({
+  required String event,
+  required Goal? goal,
+  required String? goalId,
+  required bool isCelebration,
+});
+
 /// Repository for managing goals
 class GoalRepository {
   static const String _goalsKey = 'goals';
+  GoalChangeCallback? _onGoalChanged;
+
+  /// Register a callback to be notified when goals change
+  void setChangeListener(GoalChangeCallback? callback) {
+    _onGoalChanged = callback;
+  }
+
+  /// Notify listeners of a goal change
+  Future<void> _notifyChange({
+    required String event,
+    required Goal? goal,
+    required String? goalId,
+    required bool isCelebration,
+  }) async {
+    print('📢 [REPO] Notifying change: $event (goalId: $goalId, celebration: $isCelebration)');
+    if (_onGoalChanged != null) {
+      print('📢 [REPO] Callback registered, calling listener...');
+      try {
+        await _onGoalChanged!(
+          event: event,
+          goal: goal,
+          goalId: goalId,
+          isCelebration: isCelebration,
+        );
+        print('📢 [REPO] Callback completed successfully');
+      } catch (e, stackTrace) {
+        print('❌ [REPO] Error in goal change callback: $e');
+        AppLogger.error('Error in goal change callback', e, stackTrace);
+      }
+    } else {
+      print('⚠️ [REPO] No callback registered! WidgetUpdateEngine may not be initialized.');
+    }
+  }
 
   /// Get all goals
   Future<List<Goal>> getAllGoals() async {
@@ -56,6 +97,7 @@ class GoalRepository {
     try {
       final goals = await getAllGoals();
       final index = goals.indexWhere((g) => g.id == goal.id);
+      final isNew = index < 0;
 
       if (index >= 0) {
         goals[index] = goal;
@@ -64,6 +106,14 @@ class GoalRepository {
       }
 
       await _saveAllGoals(goals);
+
+      // Notify listeners
+      await _notifyChange(
+        event: isNew ? 'goal_added' : 'goal_updated',
+        goal: goal,
+        goalId: goal.id,
+        isCelebration: false,
+      );
     } catch (e, stackTrace) {
       AppLogger.error(AppConstants.errorSaveFailed, e, stackTrace);
       rethrow;
@@ -77,6 +127,14 @@ class GoalRepository {
       final goals = await getAllGoals();
       goals.removeWhere((g) => g.id == id);
       await _saveAllGoals(goals);
+
+      // Notify listeners
+      await _notifyChange(
+        event: 'goal_deleted',
+        goal: null,
+        goalId: id,
+        isCelebration: false,
+      );
     } catch (e, stackTrace) {
       AppLogger.error('Failed to delete goal', e, stackTrace);
       rethrow;
@@ -148,6 +206,15 @@ class GoalRepository {
     );
 
     await saveGoal(updatedGoal);
+
+    // Notify listeners of progress logged
+    await _notifyChange(
+      event: 'progress_logged',
+      goal: updatedGoal,
+      goalId: updatedGoal.id,
+      isCelebration: true,
+    );
+
     return updatedGoal;
   }
 
@@ -170,6 +237,16 @@ class GoalRepository {
         lastCompletedAt: completedAt,
       );
       await saveGoal(updatedGoal);
+
+      // Check if goal is completed
+      final isCompleted = goal.targetValue != null && newValue >= goal.targetValue!;
+      await _notifyChange(
+        event: 'progress_logged',
+        goal: updatedGoal,
+        goalId: updatedGoal.id,
+        isCelebration: isCompleted,
+      );
+
       return updatedGoal;
     }
   }
@@ -187,6 +264,16 @@ class GoalRepository {
     );
 
     await saveGoal(updatedGoal);
+
+    // Check if goal is completed
+    final isCompleted = goal.targetValue != null && newValue >= goal.targetValue!;
+    await _notifyChange(
+      event: 'progress_logged',
+      goal: updatedGoal,
+      goalId: updatedGoal.id,
+      isCelebration: isCompleted,
+    );
+
     return updatedGoal;
   }
 
@@ -204,6 +291,16 @@ class GoalRepository {
     );
 
     await saveGoal(updatedGoal);
+
+    // Check if goal is completed
+    final isCompleted = clampedPercent >= 100;
+    await _notifyChange(
+      event: 'progress_logged',
+      goal: updatedGoal,
+      goalId: updatedGoal.id,
+      isCelebration: isCompleted,
+    );
+
     return updatedGoal;
   }
 
@@ -234,6 +331,16 @@ class GoalRepository {
     );
 
     await saveGoal(updatedGoal);
+
+    // Check if all milestones are completed
+    final allComplete = updatedMilestones.every((m) => m.completed);
+    await _notifyChange(
+      event: 'progress_logged',
+      goal: updatedGoal,
+      goalId: updatedGoal.id,
+      isCelebration: allComplete,
+    );
+
     return updatedGoal;
   }
 
@@ -272,6 +379,15 @@ class GoalRepository {
     final updatedGoal = goal.copyWith(milestones: updatedMilestones);
 
     await saveGoal(updatedGoal);
+
+    // Notify listeners
+    await _notifyChange(
+      event: 'goal_updated',
+      goal: updatedGoal,
+      goalId: updatedGoal.id,
+      isCelebration: false,
+    );
+
     return updatedGoal;
   }
 
@@ -314,6 +430,15 @@ class GoalRepository {
     }
 
     await saveGoal(updatedGoal);
+
+    // Notify listeners of completion
+    await _notifyChange(
+      event: 'progress_logged',
+      goal: updatedGoal,
+      goalId: updatedGoal.id,
+      isCelebration: true,
+    );
+
     return updatedGoal;
   }
 
