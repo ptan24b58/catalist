@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../domain/goal.dart';
 import '../services/service_locator.dart';
-import '../utils/constants.dart';
 import '../utils/logger.dart';
 import '../utils/gamification.dart';
 import '../utils/app_colors.dart';
@@ -26,7 +25,14 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     super.initState();
     _goal = widget.goal;
     _percentageSliderValue = _goal.percentComplete;
+    _progressController.addListener(() => setState(() {}));
     _loadGoal();
+  }
+
+  bool get _isNumericInputValid {
+    if (_goal.progressType != ProgressType.numeric) return true;
+    final value = double.tryParse(_progressController.text);
+    return value != null && value > 0;
   }
 
   @override
@@ -687,10 +693,12 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
               ),
               const SizedBox(width: 12),
               ElevatedButton(
-                onPressed: _addNumericProgress,
+                onPressed: _isNumericInputValid ? _addNumericProgress : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.catOrange,
                   foregroundColor: Colors.white,
+                  disabledBackgroundColor: AppColors.catOrangeLight,
+                  disabledForegroundColor: Colors.white.withValues(alpha: 0.6),
                   padding: const EdgeInsets.all(16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),

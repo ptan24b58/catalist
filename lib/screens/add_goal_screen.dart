@@ -28,6 +28,23 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
   int _dailyTarget = 1;
 
   @override
+  void initState() {
+    super.initState();
+    _titleController.addListener(() => setState(() {}));
+    _targetController.addListener(() => setState(() {}));
+    _milestoneController.addListener(() => setState(() {}));
+  }
+
+  bool get _canAddMilestone {
+    final text = _milestoneController.text.trim();
+    if (text.isEmpty) return false;
+    final sanitized = Validation.sanitizeMilestoneTitle(text);
+    if (sanitized == null) return false;
+    if (_milestoneInputs.length >= AppConstants.maxMilestones) return false;
+    return true;
+  }
+
+  @override
   void dispose() {
     _titleController.dispose();
     _targetController.dispose();
@@ -44,6 +61,38 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
       return [ProgressType.percentage, ProgressType.milestones, ProgressType.numeric];
     }
     return [];
+  }
+
+  bool get _isStep0Valid => _titleController.text.trim().isNotEmpty;
+
+  bool get _isStep1Valid => _goalType != null;
+
+  bool get _isStep2Valid => _progressType != null;
+
+  bool get _isStep3Valid {
+    if (_progressType == ProgressType.milestones) {
+      return _milestoneInputs.isNotEmpty;
+    }
+    if (_progressType == ProgressType.numeric && _goalType == GoalType.longTerm) {
+      final target = double.tryParse(_targetController.text);
+      return target != null && target > 0;
+    }
+    return true; // For other cases (daily numeric, percentage, completion)
+  }
+
+  bool get _canProceed {
+    switch (_currentStep) {
+      case 0:
+        return _isStep0Valid;
+      case 1:
+        return _isStep1Valid;
+      case 2:
+        return _isStep2Valid;
+      case 3:
+        return _isStep3Valid;
+      default:
+        return false;
+    }
   }
 
   void _nextStep() {
@@ -293,7 +342,10 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
             ),
             contentPadding: const EdgeInsets.all(16),
           ),
-          onSubmitted: (_) => _nextStep(),
+          onChanged: (_) => setState(() {}),
+          onSubmitted: (_) {
+            if (_canProceed) _nextStep();
+          },
         ),
       ],
     );
@@ -590,11 +642,13 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
             ),
             const SizedBox(width: 12),
             IconButton(
-              onPressed: _addMilestone,
+              onPressed: _canAddMilestone ? _addMilestone : null,
               icon: const Icon(Icons.add),
               style: IconButton.styleFrom(
                 backgroundColor: AppColors.catOrange,
                 foregroundColor: Colors.white,
+                disabledBackgroundColor: AppColors.catOrangeLight,
+                disabledForegroundColor: Colors.white.withValues(alpha: 0.6),
                 padding: const EdgeInsets.all(12),
               ),
             ),
@@ -767,6 +821,7 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
                     ),
                     contentPadding: const EdgeInsets.all(16),
                   ),
+                  onChanged: (_) => setState(() {}),
                 ),
               ),
               const SizedBox(width: 12),
@@ -964,10 +1019,12 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
           Expanded(
             flex: _currentStep == 0 ? 1 : 2,
             child: ElevatedButton(
-              onPressed: _currentStep == 3 ? _saveGoal : _nextStep,
+              onPressed: _canProceed ? (_currentStep == 3 ? _saveGoal : _nextStep) : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.catOrange,
                 foregroundColor: Colors.white,
+                disabledBackgroundColor: AppColors.catOrangeLight,
+                disabledForegroundColor: Colors.white.withValues(alpha: 0.6),
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
