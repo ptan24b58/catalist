@@ -329,18 +329,18 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
             filled: true,
             fillColor: Colors.white,
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppColors.catOrangeLight),
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide.none,
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppColors.catOrangeLight),
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide.none,
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(16),
               borderSide: const BorderSide(color: AppColors.catOrange, width: 2),
             ),
-            contentPadding: const EdgeInsets.all(16),
+            contentPadding: const EdgeInsets.all(20),
           ),
           onChanged: (_) => setState(() {}),
           onSubmitted: (_) {
@@ -409,16 +409,23 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: isSelected ? color.withValues(alpha: 0.1) : Colors.white,
-          borderRadius: BorderRadius.circular(8),
+          color: isSelected ? color.withValues(alpha: 0.08) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? color : AppColors.catOrangeLight,
-            width: isSelected ? 2 : 1,
+            color: isSelected ? color : Colors.transparent,
+            width: 2,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -501,16 +508,23 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
     final config = _getProgressTypeConfig(type);
     return InkWell(
       onTap: () => setState(() => _progressType = type),
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: isSelected ? config['color'].withOpacity(0.1) : Colors.white,
-          borderRadius: BorderRadius.circular(8),
+          color: isSelected ? config['color'].withOpacity(0.08) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? config['color'] : AppColors.catOrangeLight,
-            width: isSelected ? 2 : 1,
+            color: isSelected ? config['color'] : Colors.transparent,
+            width: 2,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -662,7 +676,14 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: Row(
                 children: [
@@ -721,11 +742,17 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
           ),
           const SizedBox(height: 24),
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.catOrangeLight),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Column(
               children: [
@@ -928,11 +955,17 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
         ),
         const SizedBox(height: 24),
         Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.catOrangeLight),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1002,14 +1035,14 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   side: const BorderSide(color: AppColors.catOrange, width: 2),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
                 child: const Text(
                   'Back',
                   style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
                     color: AppColors.catOrange,
                   ),
                 ),
@@ -1025,9 +1058,9 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
                 foregroundColor: Colors.white,
                 disabledBackgroundColor: AppColors.catOrangeLight,
                 disabledForegroundColor: Colors.white.withValues(alpha: 0.6),
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(16),
                 ),
               ),
               child: Text(

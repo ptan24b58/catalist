@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import '../domain/goal.dart';
 import '../services/service_locator.dart';
-import '../utils/constants.dart';
 import '../utils/logger.dart';
 import '../utils/progress_formatter.dart';
 import '../utils/gamification.dart';
+import '../utils/app_colors.dart';
+import '../widgets/gamification/level_badge.dart';
+import '../widgets/gamification/streak_badge.dart';
+import '../widgets/gamification/crown_icon.dart';
+import '../widgets/gamification/xp_burst.dart';
 import 'add_goal_screen.dart';
 import 'goal_detail_screen.dart';
 
@@ -21,6 +25,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
   List<Goal> _goals = [];
   bool _isLoading = true;
   GoalFilter _filter = GoalFilter.all;
+  final GlobalKey<XPBurstOverlayState> _xpOverlayKey = GlobalKey();
 
   @override
   void initState() {
@@ -66,6 +71,8 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
     try {
       if (goal.goalType == GoalType.daily) {
         await goalRepository.logDailyCompletion(goal.id, now);
+        // Show XP burst
+        _xpOverlayKey.currentState?.showXPBurst(Gamification.xpPerDailyCompletion);
         // Snapshot automatically updated by WidgetUpdateEngine
       } else {
         // For long-term goals, navigate to detail for more complex progress updates
@@ -119,289 +126,101 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
     }
   }
 
+  /// Get highest streak across all daily goals
+  int get _highestStreak {
+    int highest = 0;
+    for (final goal in _goals) {
+      if (goal.goalType == GoalType.daily && goal.currentStreak > highest) {
+        highest = goal.currentStreak;
+      }
+    }
+    return highest;
+  }
+
   @override
   Widget build(BuildContext context) {
     final totalXP = Gamification.calculateTotalXP(_goals);
     final level = Gamification.calculateLevel(totalXP);
     final levelProgress = Gamification.getLevelProgress(totalXP);
     final xpInLevel = Gamification.xpInCurrentLevel(totalXP);
-    const xpNeeded = Gamification.xpPerLevel;
 
-    return Scaffold(
-      appBar: AppBar(
-        elevation: 0,
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                _buildExperienceBanner(
-                  level: level,
-                  totalXP: totalXP,
-                  levelProgress: levelProgress,
-                  xpInLevel: xpInLevel,
-                  xpNeeded: xpNeeded,
-                ),
-                _buildFilterButtons(),
-                Expanded(
-                  child: _filteredGoals.isEmpty
-                      ? _buildEmptyState()
-                      : ListView.builder(
-                          itemCount: _filteredGoals.length,
-                          padding: const EdgeInsets.only(top: 8, bottom: 80),
-                          itemBuilder: (context, index) {
-                            final goal = _filteredGoals[index];
-                            return _buildGoalCard(goal);
-                          },
+    return XPBurstOverlay(
+      key: _xpOverlayKey,
+      child: Scaffold(
+        appBar: AppBar(
+          elevation: 0,
+        ),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                children: [
+                  // Enhanced Level Banner
+                  LevelBanner(
+                    level: level,
+                    totalXP: totalXP,
+                    xpInLevel: xpInLevel,
+                    levelProgress: levelProgress,
+                  ),
+                  // Streak indicator if any daily goals
+                  if (_highestStreak > 0)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.04),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
-                ),
-              ],
-            ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const AddGoalScreen(),
-            ),
-          );
-          await _loadGoals();
-        },
-        child: const Icon(Icons.add),
-      ),
-    );
-  }
-
-  Widget _buildExperienceBanner({
-    required int level,
-    required int totalXP,
-    required double levelProgress,
-    required int xpInLevel,
-    required int xpNeeded,
-  }) {
-    final primaryColor = Theme.of(context).colorScheme.primary;
-    final goldColor = Theme.of(context).colorScheme.tertiary;
-    
-    return Container(
-      margin: const EdgeInsets.all(16),
-      decoration: _buildBannerDecoration(primaryColor, goldColor),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: _buildLevelInfo(level, xpInLevel, xpNeeded, primaryColor)),
-                const SizedBox(width: 16),
-                _buildTotalXPBadge(totalXP, primaryColor),
-              ],
-            ),
-            const SizedBox(height: 24),
-            _buildProgressBar(levelProgress, primaryColor, goldColor),
-          ],
-        ),
-      ),
-    );
-  }
-
-  BoxDecoration _buildBannerDecoration(Color primaryColor, Color goldColor) {
-    return BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          primaryColor.withValues(alpha: 0.3),
-          primaryColor.withValues(alpha: 0.2),
-          goldColor.withValues(alpha: 0.2),
-          goldColor.withValues(alpha: 0.1),
-        ],
-        stops: const [0.0, 0.4, 0.6, 1.0],
-      ),
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(
-        color: primaryColor.withValues(alpha: 0.25),
-        width: 1.5,
-      ),
-      boxShadow: [
-        BoxShadow(
-          color: primaryColor.withValues(alpha: 0.2),
-          blurRadius: 16,
-          offset: const Offset(0, 4),
-          spreadRadius: 0,
-        ),
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.05),
-          blurRadius: 8,
-          offset: const Offset(0, 2),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLevelInfo(int level, int xpInLevel, int xpNeeded, Color primaryColor) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [primaryColor, primaryColor.withValues(alpha: 0.85)],
-            ),
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: primaryColor.withValues(alpha: 0.35),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
+                        child: Row(
+                          children: [
+                            StreakBadge(streak: _highestStreak, size: 22),
+                            const SizedBox(width: 8),
+                            Text(
+                              'day streak',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  _buildFilterButtons(),
+                  Expanded(
+                    child: _filteredGoals.isEmpty
+                        ? _buildEmptyState()
+                        : ListView.builder(
+                            itemCount: _filteredGoals.length,
+                            padding: const EdgeInsets.only(top: 8, bottom: 80),
+                            itemBuilder: (context, index) {
+                              final goal = _filteredGoals[index];
+                              return _buildGoalCard(goal);
+                            },
+                          ),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: Text(
-            'LEVEL $level',
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              letterSpacing: 1.2,
-              height: 1.2,
-            ),
-          ),
-        ),
-        const SizedBox(height: 18),
-        Text(
-          'Experience',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-            letterSpacing: 0.8,
-            height: 1.0,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            Text(
-              '$xpInLevel',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: primaryColor,
-                height: 1.0,
-                letterSpacing: -0.5,
+        floatingActionButton: FloatingActionButton(
+          onPressed: () async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const AddGoalScreen(),
               ),
-            ),
-            const SizedBox(width: 4),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 2),
-              child: Text(
-                '/ $xpNeeded XP',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.65),
-                  height: 1.0,
-                ),
-              ),
-            ),
-          ],
+            );
+            await _loadGoals();
+          },
+          child: const Icon(Icons.add),
         ),
-      ],
-    );
-  }
-
-  Widget _buildTotalXPBadge(int totalXP, Color primaryColor) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: primaryColor.withValues(alpha: 0.25),
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: primaryColor.withValues(alpha: 0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'Total',
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
-              letterSpacing: 0.8,
-              height: 1.0,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '$totalXP',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: primaryColor,
-              height: 1.0,
-              letterSpacing: -0.5,
-            ),
-          ),
-          Text(
-            'XP',
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-              height: 1.0,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProgressBar(double levelProgress, Color primaryColor, Color goldColor) {
-    return Stack(
-      children: [
-        Container(
-          height: 12,
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(6),
-          ),
-        ),
-        FractionallySizedBox(
-          widthFactor: levelProgress,
-          child: Container(
-            height: 12,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [primaryColor, goldColor]),
-              borderRadius: BorderRadius.circular(6),
-              boxShadow: [
-                BoxShadow(
-                  color: primaryColor.withValues(alpha: 0.5),
-                  blurRadius: 10,
-                  offset: const Offset(0, 0),
-                  spreadRadius: 1,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
     );
   }
 
@@ -517,94 +336,121 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
     final progress = goal.getProgress();
     final isCompleted = goal.isCompleted;
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: InkWell(
-        onTap: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => GoalDetailScreen(goal: goal),
-            ),
-          );
-          await _loadGoals();
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  _buildStatusIcon(goal, isCompleted),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                goal.title,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24), // More rounded (Duolingo-style)
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4), // Bolder shadow
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => GoalDetailScreen(goal: goal),
+              ),
+            );
+            await _loadGoals();
+          },
+          borderRadius: BorderRadius.circular(24),
+          child: Padding(
+            padding: const EdgeInsets.all(20), // Larger padding
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    _buildStatusIcon(goal, isCompleted),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  goal.title,
+                                  style: const TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
-
+                              if (isCompleted) ...[
+                                const SizedBox(width: 8),
+                                const CrownBadge(size: 28),
+                              ] else ...[
+                                _buildGoalTypeBadge(goal),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          _buildSubtitle(goal, now),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _buildProgressIndicator(goal, progress),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      ProgressFormatter.getDetailedProgressLabel(goal, now: now),
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                      ),
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (!isCompleted && goal.goalType == GoalType.daily)
+                          Container(
+                            decoration: BoxDecoration(
+                              color: AppColors.xpGreen.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            _buildGoalTypeBadge(goal),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        _buildSubtitle(goal, now),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              _buildProgressIndicator(goal, progress),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    ProgressFormatter.getDetailedProgressLabel(goal, now: now),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                    ),
-                  ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (!isCompleted && goal.goalType == GoalType.daily)
+                            child: IconButton(
+                              icon: const Icon(Icons.check_circle_outline),
+                              onPressed: () => _logProgress(goal),
+                              tooltip: 'Complete Today',
+                              visualDensity: VisualDensity.compact,
+                              style: IconButton.styleFrom(
+                                foregroundColor: AppColors.xpGreen,
+                                minimumSize: const Size(44, 44),
+                              ),
+                            ),
+                          ),
+                        const SizedBox(width: 4),
                         IconButton(
-                          icon: const Icon(Icons.check),
-                          onPressed: () => _logProgress(goal),
-                          tooltip: 'Log Progress',
+                          icon: const Icon(Icons.delete_outline),
+                          onPressed: () => _deleteGoal(goal),
+                          tooltip: 'Delete',
                           visualDensity: VisualDensity.compact,
                           style: IconButton.styleFrom(
-                            foregroundColor: Theme.of(context).colorScheme.primary,
-                            minimumSize: const Size(36, 36),
-                            padding: EdgeInsets.zero,
+                            foregroundColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                           ),
                         ),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline),
-                        onPressed: () => _deleteGoal(goal),
-                        tooltip: 'Delete',
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ],
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -724,17 +570,18 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
   }
 
   Widget _buildProgressIndicator(Goal goal, double progress) {
+    final isCompleted = goal.isCompleted;
+    final progressColor = isCompleted
+        ? AppColors.xpGreen
+        : Theme.of(context).colorScheme.primary;
+
     return ClipRRect(
-      borderRadius: BorderRadius.circular(4),
+      borderRadius: BorderRadius.circular(5), // More rounded
       child: LinearProgressIndicator(
         value: progress,
-        minHeight: 8,
+        minHeight: 10, // Thicker (was 8)
         backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-        valueColor: AlwaysStoppedAnimation<Color>(
-          goal.isCompleted
-              ? Theme.of(context).colorScheme.tertiary
-              : Theme.of(context).colorScheme.primary,
-        ),
+        valueColor: AlwaysStoppedAnimation<Color>(progressColor),
       ),
     );
   }

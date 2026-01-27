@@ -2,6 +2,23 @@ import 'package:flutter/material.dart';
 import '../domain/goal.dart';
 import 'app_colors.dart';
 
+/// Streak tier information for display
+class StreakTier {
+  final String name;
+  final int flameCount;
+  final Color color;
+  final bool hasGlow;
+  final bool hasSparkles;
+
+  const StreakTier({
+    required this.name,
+    required this.flameCount,
+    required this.color,
+    required this.hasGlow,
+    required this.hasSparkles,
+  });
+}
+
 /// Gamification utilities for XP, levels, and achievements
 class Gamification {
   Gamification._();
@@ -80,13 +97,60 @@ class Gamification {
     return (xpInLevel / xpNeeded).clamp(0.0, 1.0);
   }
 
-  /// Get color for streak badge
+  /// Get color for streak badge based on tier
   static Color getStreakColor(int streak) {
-    if (streak >= 30) return AppColors.emotionCelebrate;
-    if (streak >= 14) return AppColors.emotionHappy;
-    if (streak >= 7) return AppColors.catOrange;
-    if (streak >= 3) return AppColors.catBlue;
+    if (streak >= 30) return AppColors.streakPlatinum;
+    if (streak >= 14) return AppColors.streakGold;
+    if (streak >= 7) return AppColors.streakSilver;
+    if (streak >= 1) return AppColors.streakBronze;
     return AppColors.textSecondary;
+  }
+
+  /// Get streak tier info for display
+  static StreakTier getStreakTier(int streak) {
+    if (streak >= 30) {
+      return StreakTier(
+        name: 'Legendary',
+        flameCount: 4,
+        color: AppColors.streakPlatinum,
+        hasGlow: true,
+        hasSparkles: true,
+      );
+    }
+    if (streak >= 14) {
+      return StreakTier(
+        name: 'Epic',
+        flameCount: 3,
+        color: AppColors.streakGold,
+        hasGlow: true,
+        hasSparkles: false,
+      );
+    }
+    if (streak >= 7) {
+      return StreakTier(
+        name: 'Hot',
+        flameCount: 2,
+        color: AppColors.streakSilver,
+        hasGlow: true,
+        hasSparkles: false,
+      );
+    }
+    if (streak >= 1) {
+      return StreakTier(
+        name: 'Active',
+        flameCount: 1,
+        color: AppColors.streakBronze,
+        hasGlow: streak >= 3,
+        hasSparkles: false,
+      );
+    }
+    return StreakTier(
+      name: 'Start',
+      flameCount: 0,
+      color: AppColors.textSecondary,
+      hasGlow: false,
+      hasSparkles: false,
+    );
   }
 
   /// Get streak badge text (minimalist - returns empty for clean UI)

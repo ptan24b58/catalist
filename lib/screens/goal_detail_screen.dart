@@ -4,6 +4,9 @@ import '../services/service_locator.dart';
 import '../utils/logger.dart';
 import '../utils/gamification.dart';
 import '../utils/app_colors.dart';
+import '../widgets/gamification/streak_badge.dart';
+import '../widgets/gamification/crown_icon.dart';
+import '../widgets/gamification/xp_burst.dart';
 
 class GoalDetailScreen extends StatefulWidget {
   final Goal goal;
@@ -18,7 +21,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
   late Goal _goal;
   final _progressController = TextEditingController();
   double _percentageSliderValue = 0;
-  bool _isCelebrating = false;
+  final GlobalKey<XPBurstOverlayState> _xpOverlayKey = GlobalKey();
 
   @override
   void initState() {
@@ -58,8 +61,10 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
   Future<void> _logDailyCompletion() async {
     try {
       await goalRepository.logDailyCompletion(_goal.id, DateTime.now());
+      // Show XP burst
+      _xpOverlayKey.currentState?.showXPBurst(Gamification.xpPerDailyCompletion);
       await _loadGoal();
-      
+
       if (mounted) {
         _showCelebration();
       }
@@ -70,7 +75,17 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
 
   Future<void> _updatePercentage() async {
     try {
+      final oldPercent = _goal.percentComplete;
       await goalRepository.updatePercentage(_goal.id, _percentageSliderValue);
+
+      // Show XP burst for progress
+      if (_percentageSliderValue > oldPercent) {
+        final xpEarned = ((_percentageSliderValue - oldPercent) / 10).round() * 2;
+        if (xpEarned > 0) {
+          _xpOverlayKey.currentState?.showXPBurst(xpEarned);
+        }
+      }
+
       await _loadGoal();
 
       if (mounted) {
@@ -93,6 +108,11 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
       final newValue = _goal.currentValue + value;
       await goalRepository.updateNumericProgress(_goal.id, newValue);
       _progressController.clear();
+
+      // Show XP burst for progress
+      final xpEarned = (value / 10).round().clamp(1, 10);
+      _xpOverlayKey.currentState?.showXPBurst(xpEarned);
+
       await _loadGoal();
 
       if (mounted) {
@@ -107,9 +127,16 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
 
   Future<void> _toggleMilestone(Milestone milestone) async {
     try {
+      final wasCompleted = milestone.completed;
       await goalRepository.toggleMilestone(_goal.id, milestone.id);
+
+      // Show XP burst for completing a milestone
+      if (!wasCompleted) {
+        _xpOverlayKey.currentState?.showXPBurst(Gamification.xpPerMilestone);
+      }
+
       await _loadGoal();
-      
+
       if (mounted && _goal.isCompleted) {
         _showCelebration();
       }
@@ -119,11 +146,22 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
   }
 
   void _showCelebration() {
-    setState(() => _isCelebrating = true);
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() => _isCelebrating = false);
-      }
+    if (!mounted) return;
+    // Defer to next frame so it shows after _loadGoal's rebuild; use route overlay so it's on top
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      showGeneralDialog<void>(
+        context: context,
+        barrierDismissible: true,
+        barrierColor: Colors.black.withValues(alpha: 0.6),
+        barrierLabel: '',
+        transitionDuration: const Duration(milliseconds: 200),
+        transitionBuilder: (_, animation, __, child) =>
+            FadeTransition(opacity: animation, child: child),
+        pageBuilder: (dialogContext, _, __) => _buildCelebrationContent(
+          onTap: () => Navigator.of(dialogContext).pop(),
+        ),
+      );
     });
   }
 
@@ -168,84 +206,97 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     final isCompleted = _goal.isCompleted;
     final cardColor = Gamification.getGoalCardColor(_goal);
 
-    return Scaffold(
-      backgroundColor: AppColors.catCream,
-      body: Stack(
-        children: [
-          CustomScrollView(
-            slivers: [
-              // Gamified header
-              SliverAppBar(
-                expandedHeight: 200,
-                floating: false,
-                pinned: true,
-                backgroundColor: isCompleted ? AppColors.emotionHappy : cardColor,
-                actions: [
-                  PopupMenuButton(
-                    icon: const Icon(Icons.more_vert, color: Colors.white),
-                    itemBuilder: (context) => [
-                      PopupMenuItem(
-                        child: const Row(
-                          children: [
-                            Icon(Icons.delete, color: AppColors.error),
-                            SizedBox(width: 8),
-                            Text('Delete Goal'),
-                          ],
+    return XPBurstOverlay(
+      key: _xpOverlayKey,
+      child: Scaffold(
+        backgroundColor: AppColors.catCream,
+        body: Stack(
+          children: [
+            CustomScrollView(
+              slivers: [
+                // Gamified header
+                SliverAppBar(
+                  expandedHeight: 200,
+                  floating: false,
+                  pinned: true,
+                  backgroundColor: isCompleted ? AppColors.emotionHappy : cardColor,
+                  actions: [
+                    PopupMenuButton(
+                      icon: const Icon(Icons.more_vert, color: Colors.white),
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          child: const Row(
+                            children: [
+                              Icon(Icons.delete, color: AppColors.error),
+                              SizedBox(width: 8),
+                              Text('Delete Goal'),
+                            ],
+                          ),
+                          onTap: () async {
+                            await Future.delayed(const Duration(milliseconds: 100));
+                            _deleteGoal();
+                          },
                         ),
-                        onTap: () async {
-                          await Future.delayed(const Duration(milliseconds: 100));
-                          _deleteGoal();
-                        },
+                      ],
+                    ),
+                  ],
+                  flexibleSpace: FlexibleSpaceBar(
+                    title: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isCompleted) ...[
+                          const CrownIcon(size: 20),
+                          const SizedBox(width: 8),
+                        ],
+                        Flexible(
+                          child: Text(
+                            _goal.title,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    background: Container(
+                      decoration: BoxDecoration(
+                        color: isCompleted ? AppColors.emotionHappy : cardColor,
                       ),
-                    ],
-                  ),
-                ],
-                flexibleSpace: FlexibleSpaceBar(
-                  title: Text(
-                    _goal.title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  background: Container(
-                    decoration: BoxDecoration(
-                      color: isCompleted ? AppColors.emotionHappy : cardColor,
                     ),
                   ),
                 ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    children: [
-                      // Main progress card
-                      _buildMainProgressCard(progress, isCompleted, cardColor),
-                      const SizedBox(height: 20),
-                      
-                      // Progress controls
-                      _buildProgressControls(),
-                      
-                      // Stats cards
-                      if (_goal.goalType == GoalType.daily) ...[
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      children: [
+                        // Main progress card
+                        _buildMainProgressCard(progress, isCompleted, cardColor),
                         const SizedBox(height: 20),
-                        _buildStreakCard(),
+
+                        // Progress controls
+                        _buildProgressControls(),
+
+                        // Stats cards
+                        if (_goal.goalType == GoalType.daily) ...[
+                          const SizedBox(height: 20),
+                          _buildStreakCard(),
+                        ],
+
+                        if (_goal.goalType == GoalType.longTerm && _goal.deadline != null) ...[
+                          const SizedBox(height: 20),
+                          _buildDeadlineCard(),
+                        ],
                       ],
-                      
-                      if (_goal.goalType == GoalType.longTerm && _goal.deadline != null) ...[
-                        const SizedBox(height: 20),
-                        _buildDeadlineCard(),
-                      ],
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          // Celebration overlay
-          if (_isCelebrating) _buildCelebrationOverlay(),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -253,11 +304,17 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
 
   Widget _buildMainProgressCard(double progress, bool isCompleted, Color cardColor) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.catOrangeLight),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -744,113 +801,9 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
   }
 
   Widget _buildStreakCard() {
-    final streakColor = Gamification.getStreakColor(_goal.currentStreak);
-    final streakBadge = Gamification.getStreakBadge(_goal.currentStreak);
-
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: streakColor.withValues(alpha: 0.2),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                Icon(
-                  Icons.local_fire_department,
-                  size: 40,
-                  color: streakColor,
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Current Streak',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  streakBadge.isNotEmpty
-                      ? '$streakBadge ${_goal.currentStreak}'
-                      : '${_goal.currentStreak}',
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: streakColor,
-                  ),
-                ),
-                const Text(
-                  'days',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.catGold.withValues(alpha: 0.2),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                const Icon(
-                  Icons.emoji_events,
-                  size: 40,
-                  color: AppColors.catGold,
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Best Streak',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${_goal.longestStreak}',
-                  style: const TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.catGold,
-                  ),
-                ),
-                const Text(
-                  'days',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
+    return StreakCard(
+      currentStreak: _goal.currentStreak,
+      bestStreak: _goal.longestStreak,
     );
   }
 
@@ -917,49 +870,71 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     );
   }
 
-  Widget _buildCelebrationOverlay() {
-    // ignore: prefer_const_declarations
-    // Cannot be const due to string interpolation (even with const parts)
-    final xpText = '+${Gamification.xpPerGoalCompleted} XP'; // ignore: prefer_const_declarations
-    return Container(
-      color: Colors.black.withValues(alpha: 0.3),
-      child: Center(
-        child: Container(
-          padding: const EdgeInsets.all(32),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.check_circle,
-                size: 64,
-                color: AppColors.emotionHappy,
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Goal Completed!',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+  /// Celebration content used in the route overlay (showGeneralDialog).
+  Widget _buildCelebrationContent({required VoidCallback onTap}) {
+    const xpText = '+${Gamification.xpPerGoalCompleted} XP';
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox.expand(
+        child: Center(
+          child: Container(
+            margin: const EdgeInsets.all(32),
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.crownGold.withValues(alpha: 0.4),
+                  blurRadius: 20,
+                  spreadRadius: 2,
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                xpText,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.catOrange,
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CrownIcon(size: 64),
+                const SizedBox(height: 16),
+                const Text(
+                  'Goal Completed!',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.xpGreen,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    xpText,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Tap to continue',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 }
+
