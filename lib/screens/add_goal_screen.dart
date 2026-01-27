@@ -343,20 +343,23 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
     );
   }
 
+  // Cached decoration to avoid recreation on every build
+  static final _cardBoxDecoration = BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(24),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withValues(alpha: 0.08),
+        blurRadius: 12,
+        offset: const Offset(0, 4),
+      ),
+    ],
+  );
+
   Widget _wrapCard(BuildContext context, {required Widget child}) {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+      decoration: _cardBoxDecoration,
       child: child,
     );
   }
@@ -414,17 +417,7 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
     final theme = Theme.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 0),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+      decoration: _cardBoxDecoration,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -518,17 +511,7 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
     final theme = Theme.of(context);
     final config = _getProgressTypeConfig(context, type);
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+      decoration: _cardBoxDecoration,
       child: Material(
         color: Colors.transparent,
         child: InkWell(

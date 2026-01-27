@@ -153,18 +153,6 @@ class Gamification {
     );
   }
 
-  /// Get streak badge text (minimalist - returns empty for clean UI)
-  static String getStreakBadge(int streak) {
-    // Return empty for minimalist design
-    return '';
-  }
-
-  /// Get achievement badge for goal completion (minimalist - returns empty)
-  static String getAchievementBadge(Goal goal) {
-    // Return empty for minimalist design
-    return '';
-  }
-
   /// Get goal card color based on progress
   static Color getGoalCardColor(Goal goal) {
     final progress = goal.getProgress();

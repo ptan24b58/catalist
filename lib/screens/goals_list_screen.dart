@@ -28,21 +28,33 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
   GoalFilter _filter = GoalFilter.all;
   final GlobalKey<XPBurstOverlayState> _xpOverlayKey = GlobalKey();
 
+  // Cached computed values to avoid repeated calculations
+  List<Goal>? _cachedFilteredGoals;
+  GoalFilter? _lastFilter;
+  int? _cachedHighestStreak;
+
   @override
   void initState() {
     super.initState();
     _loadGoals();
   }
 
+  void _invalidateCache() {
+    _cachedFilteredGoals = null;
+    _cachedHighestStreak = null;
+  }
+
   List<Goal> get _filteredGoals {
-    switch (_filter) {
-      case GoalFilter.all:
-        return _goals;
-      case GoalFilter.daily:
-        return _goals.where((g) => g.goalType == GoalType.daily).toList();
-      case GoalFilter.longTerm:
-        return _goals.where((g) => g.goalType == GoalType.longTerm).toList();
+    if (_cachedFilteredGoals != null && _lastFilter == _filter) {
+      return _cachedFilteredGoals!;
     }
+    _lastFilter = _filter;
+    _cachedFilteredGoals = switch (_filter) {
+      GoalFilter.all => _goals,
+      GoalFilter.daily => _goals.where((g) => g.goalType == GoalType.daily).toList(),
+      GoalFilter.longTerm => _goals.where((g) => g.goalType == GoalType.longTerm).toList(),
+    };
+    return _cachedFilteredGoals!;
   }
 
   Future<void> _loadGoals() async {
@@ -56,6 +68,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
         setState(() {
           _goals = goals;
           _isLoading = false;
+          _invalidateCache();
         });
       }
       // Snapshot automatically updated by WidgetUpdateEngine when goals change
@@ -128,14 +141,16 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
     }
   }
 
-  /// Get highest streak across all daily goals
+  /// Get highest streak across all daily goals (cached)
   int get _highestStreak {
+    if (_cachedHighestStreak != null) return _cachedHighestStreak!;
     int highest = 0;
     for (final goal in _goals) {
       if (goal.goalType == GoalType.daily && goal.currentStreak > highest) {
         highest = goal.currentStreak;
       }
     }
+    _cachedHighestStreak = highest;
     return highest;
   }
 
@@ -256,7 +271,12 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
       color: Colors.transparent,
       child: InkWell(
         onTap: () {
-          setState(() => _filter = filter);
+          if (_filter != filter) {
+            setState(() {
+              _filter = filter;
+              _cachedFilteredGoals = null; // Invalidate filter cache
+            });
+          }
         },
         splashColor: Colors.transparent,
         highlightColor: Colors.transparent,
@@ -514,7 +534,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
     if (goal.goalType == GoalType.daily) {
       return Row(
         children: [
-          Icon(
+          const Icon(
             Icons.local_fire_department,
             size: 14,
             color: AppColors.streakFlameOrange,

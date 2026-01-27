@@ -262,17 +262,48 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     );
   }
 
-  BoxDecoration _cardDecoration(BuildContext context) {
-    return BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(24),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.08),
-          blurRadius: 12,
-          offset: const Offset(0, 4),
+  // Cached card decoration to avoid recreating on every build
+  static final _cardDecorationCached = BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(24),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withValues(alpha: 0.08),
+        blurRadius: 12,
+        offset: const Offset(0, 4),
+      ),
+    ],
+  );
+
+  BoxDecoration _cardDecoration(BuildContext context) => _cardDecorationCached;
+
+  /// Reusable "Completed" indicator widget - extracted to avoid duplication
+  Widget _buildCompletedIndicator(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: _cardDecoration(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.xpGreen.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
         ),
-      ],
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.check_circle, color: AppColors.xpGreen, size: 24),
+            SizedBox(width: 8),
+            Text(
+              'Completed',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                color: AppColors.xpGreen,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -385,32 +416,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
 
   Widget _buildCompletionControls(BuildContext context) {
     if (_goal.isCompleted) {
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: _cardDecoration(context),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: AppColors.xpGreen.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.check_circle, color: AppColors.xpGreen, size: 24),
-              const SizedBox(width: 8),
-              Text(
-                'Completed',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.xpGreen,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
+      return _buildCompletedIndicator(context);
     }
 
     return ElevatedButton.icon(
@@ -419,7 +425,8 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
           : () async {
               await goalRepository.markLongTermComplete(_goal.id);
               await _loadGoal();
-              if (mounted) showCelebrationOverlay(context);
+              if (!context.mounted) return;
+              showCelebrationOverlay(context);
             },
       icon: const Icon(Icons.check_circle, size: 24),
       label: Text(
@@ -443,32 +450,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
   Widget _buildPercentageControls(BuildContext context) {
     final theme = Theme.of(context);
     if (_goal.isCompleted) {
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: _cardDecoration(context),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: AppColors.xpGreen.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.check_circle, color: AppColors.xpGreen, size: 24),
-              const SizedBox(width: 8),
-              Text(
-                'Completed',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.xpGreen,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
+      return _buildCompletedIndicator(context);
     }
 
     return Container(
@@ -613,36 +595,10 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
   Widget _buildNumericControls(BuildContext context) {
     final theme = Theme.of(context);
     if (_goal.isCompleted) {
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: _cardDecoration(context),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: AppColors.xpGreen.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.check_circle, color: AppColors.xpGreen, size: 24),
-              const SizedBox(width: 8),
-              Text(
-                'Completed',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.xpGreen,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
+      return _buildCompletedIndicator(context);
     }
 
     final unit = _goal.unit ?? '';
-    final now = DateTime.now();
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -716,7 +672,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                     ),
                   ),
                   Text(
-                    '${_goal.getProgressToday(now).toInt()}/${_goal.dailyTarget}',
+                    '${_goal.getProgressToday(DateTime.now()).toInt()}/${_goal.dailyTarget}',
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w600,

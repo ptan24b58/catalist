@@ -70,11 +70,10 @@ class CTAEngine {
   /// Get CTA for completed goals
   /// Rotates messages frequently to celebrate achievements
   static String _getCompletedCTA(DateTime now, String goalType) {
-    final messages = List<String>.from(
-      goalType == 'daily'
-          ? CTAMessages.completedDaily
-          : CTAMessages.completedLongTerm
-    );
+    // Use directly without copying - these are const lists
+    final messages = goalType == 'daily'
+        ? CTAMessages.completedDaily
+        : CTAMessages.completedLongTerm;
     return _selectRotatingMessage(messages, now);
   }
 
@@ -90,18 +89,18 @@ class CTAEngine {
   }) {
     // Celebrate emotion gets special treatment
     if (emotion == MascotEmotion.celebrate) {
-      final messages = List<String>.from(CTAMessages.celebrate);
       final shortTitle = _getShortTitle(goalTitle);
+      // Only copy if we need to add goal-specific messages
       if (shortTitle != null) {
-        messages.addAll([
+        final messages = <String>[
+          ...CTAMessages.celebrate,
           "Keep crushing $shortTitle!",
           "You're on fire with $shortTitle!",
           "Don't stop on $shortTitle!",
-          "Keep the momentum with $shortTitle!",
-          "You're winning with $shortTitle!",
-        ]);
+        ];
+        return _selectRotatingMessage(messages, now);
       }
-      return _selectRotatingMessage(messages, now);
+      return _selectRotatingMessage(CTAMessages.celebrate, now);
     }
 
     // Combine urgency level with progress state and time for nuanced messaging
@@ -358,22 +357,15 @@ class CTAEngine {
       messages.addAll(goalMessages);
     }
 
-    if (progressLabel != null) {
+    // Add progress label messages - limited to 3 to reduce memory
+    if (progressLabel != null && messages.length < 20) {
       messages.add("You're at $progressLabel, keep going!");
-      messages.add("You're at $progressLabel, all good, fr!");
-      messages.add("You're at $progressLabel, let's pick it up, fr!");
-      messages.add("You're at $progressLabel, let's keep going, fr!");
-      messages.add("You're at $progressLabel, almost there, fr!");
-      messages.add("You're at $progressLabel, one more push, fr!");
-      messages.add("You're at $progressLabel, let's catch up, fr!");
-      messages.add("You're at $progressLabel, this is urgent, fr!");
-      messages.add("You're at $progressLabel, still time to turn it around, fr!");
-      messages.add("You're at $progressLabel, time to lock in now, fr!");
       messages.add("You're at $progressLabel, let's keep it up, fr!");
     }
   }
 
   /// Generate goal-specific messages that naturally reference the goal title
+  /// Optimized: reduced from ~100 messages to ~15 to improve performance
   static List<String> _generateGoalSpecificMessages(
     String shortTitle,
     TimeContext? timeContext,
@@ -381,163 +373,77 @@ class CTAEngine {
     ProgressState? progressState,
   ) {
     final messages = <String>[];
-    
-    // Time-of-day specific goal messages
-    if (timeContext == TimeContext.morning) {
-      messages.addAll([
-        "Let's get $shortTitle done this morning!",
-        "Time to work on $shortTitle!",
-        "Start your day with $shortTitle!",
-        "Let's tackle $shortTitle today!",
-        "Morning grind for $shortTitle!",
-        "As if you'll start $shortTitle later...",
-        "Sure, procrastinate on $shortTitle in the morning...",
-        "Not you being a morning person with $shortTitle...",
-        "I'm sure you'll get to $shortTitle... eventually...",
-        "As if mornings aren't for $shortTitle...",
-      ]);
-    } else if (timeContext == TimeContext.afternoon) {
-      messages.addAll([
-        "Keep working on $shortTitle!",
-        "Let's make progress on $shortTitle!",
-        "Afternoon push for $shortTitle!",
-        "Time to focus on $shortTitle!",
-        "Let's get $shortTitle done!",
-        "As if you'll slow down on $shortTitle...",
-        "Sure, take an afternoon break from $shortTitle...",
-        "Not you losing momentum on $shortTitle...",
-        "I'm sure you'll pick up $shortTitle... eventually...",
-        "As if afternoons aren't productive for $shortTitle...",
-      ]);
-    } else if (timeContext == TimeContext.evening) {
-      messages.addAll([
-        "Let's finish $shortTitle strong!",
-        "Last push for $shortTitle!",
-        "Wrap up $shortTitle today!",
-        "Finish $shortTitle before the day ends!",
-        "Let's complete $shortTitle!",
-        "As if you'll finish $shortTitle tmrw...",
-        "Sure, leave $shortTitle for tmrw...",
-        "Not you ending the day without $shortTitle...",
-        "I'm sure you'll finish $shortTitle... eventually...",
-        "As if evenings aren't for finishing $shortTitle...",
-      ]);
-    } else if (timeContext == TimeContext.night) {
-      messages.addAll([
-        "Let's finish $shortTitle before bed!",
-        "One more push for $shortTitle!",
-        "Late night grind for $shortTitle!",
-        "Let's wrap up $shortTitle!",
-        "Finish $shortTitle tonight!",
-        "As if you'll remember $shortTitle tmrw...",
-        "Sure, do $shortTitle in the morning...",
-        "Not you being a night owl with $shortTitle...",
-        "I'm sure you'll remember $shortTitle... eventually...",
-        "As if sleep is more important than $shortTitle...",
-      ]);
+
+    // Time-of-day specific (2 messages each instead of 10)
+    switch (timeContext) {
+      case TimeContext.morning:
+        messages.addAll([
+          "Let's get $shortTitle done this morning!",
+          "As if you'll start $shortTitle later...",
+        ]);
+      case TimeContext.afternoon:
+        messages.addAll([
+          "Keep working on $shortTitle!",
+          "Afternoon push for $shortTitle!",
+        ]);
+      case TimeContext.evening:
+        messages.addAll([
+          "Let's finish $shortTitle strong!",
+          "Wrap up $shortTitle today!",
+        ]);
+      case TimeContext.night:
+        messages.addAll([
+          "Let's finish $shortTitle before bed!",
+          "One more push for $shortTitle!",
+        ]);
+      case null:
+        break;
     }
 
-    // Progress-specific goal messages
+    // Progress-specific (2 messages instead of 10)
     if (progressState == ProgressState.early) {
       messages.addAll([
         "Let's start $shortTitle!",
         "Time to begin $shortTitle!",
-        "Let's get $shortTitle going!",
-        "Start working on $shortTitle!",
-        "Let's kick off $shortTitle!",
-        "As if you'll start $shortTitle later...",
-        "Sure, delay starting $shortTitle...",
-        "Not you procrastinating on $shortTitle...",
-        "I'm sure you'll begin $shortTitle... eventually...",
-        "As if starting $shortTitle isn't important...",
       ]);
     } else if (progressState == ProgressState.nearComplete) {
       messages.addAll([
         "Almost done with $shortTitle!",
         "Finish $shortTitle, you're so close!",
-        "One more push for $shortTitle!",
-        "Let's complete $shortTitle!",
-        "You're almost there with $shortTitle!",
-        "As if you won't finish $shortTitle...",
-        "Sure, stop when you're almost done with $shortTitle...",
-        "Not you being so close to finishing $shortTitle...",
-        "I'm sure you'll complete $shortTitle... eventually...",
-        "As if finishing $shortTitle isn't worth it...",
       ]);
     }
 
-    // Urgency-specific goal messages
-    if (urgencyLevel == UrgencyLevel.low) {
-      messages.addAll([
-        "You're ahead on $shortTitle, keep going!",
-        "You're crushing $shortTitle!",
-        "Keep it up with $shortTitle!",
-        "You're doing great with $shortTitle!",
-        "Stay on track with $shortTitle!",
-        "As if you're not crushing $shortTitle...",
-        "Sure, slow down on $shortTitle...",
-        "Not you being too good at $shortTitle...",
-        "I'm sure you'll stop crushing $shortTitle...",
-        "As if consistency with $shortTitle isn't key...",
-      ]);
-    } else if (urgencyLevel == UrgencyLevel.medium) {
-      messages.addAll([
-        "Let's work on $shortTitle!",
-        "Time to focus on $shortTitle!",
-        "Let's make progress on $shortTitle!",
-        "Keep pushing on $shortTitle!",
-        "Stay on $shortTitle!",
-        "As if you don't need to work on $shortTitle...",
-        "Sure, you'll get to $shortTitle later...",
-        "Not you forgetting about $shortTitle...",
-        "I'm sure you'll focus on $shortTitle... eventually...",
-        "As if $shortTitle isn't important...",
-      ]);
-    } else if (urgencyLevel == UrgencyLevel.high) {
-      messages.addAll([
-        "We're behind on $shortTitle, let's catch up!",
-        "Time to hustle on $shortTitle!",
-        "We need to catch up on $shortTitle!",
-        "Let's turn it around with $shortTitle!",
-        "Rally mode for $shortTitle!",
-        "As if you're not behind on $shortTitle...",
-        "Sure, take your time with $shortTitle...",
-        "Not you being late on $shortTitle...",
-        "I'm sure you'll catch up on $shortTitle... eventually...",
-        "As if deadlines for $shortTitle aren't real...",
-      ]);
-    } else if (urgencyLevel == UrgencyLevel.critical) {
-      messages.addAll([
-        "This is urgent for $shortTitle, do it now!",
-        "We can still fix $shortTitle, you got this!",
-        "Time to lock in on $shortTitle, this is it!",
-        "No more delays on $shortTitle!",
-        "Emergency mode for $shortTitle!",
-        "As if $shortTitle isn't urgent...",
-        "Sure, delay $shortTitle more...",
-        "Not you procrastinating on $shortTitle...",
-        "I'm sure you'll fix $shortTitle... eventually...",
-        "As if urgency for $shortTitle isn't real...",
-      ]);
+    // Urgency-specific (2 messages instead of 10)
+    switch (urgencyLevel) {
+      case UrgencyLevel.low:
+        messages.addAll([
+          "You're ahead on $shortTitle, keep going!",
+          "You're crushing $shortTitle!",
+        ]);
+      case UrgencyLevel.medium:
+        messages.addAll([
+          "Let's work on $shortTitle!",
+          "Time to focus on $shortTitle!",
+        ]);
+      case UrgencyLevel.high:
+        messages.addAll([
+          "We're behind on $shortTitle, let's catch up!",
+          "Rally mode for $shortTitle!",
+        ]);
+      case UrgencyLevel.critical:
+        messages.addAll([
+          "This is urgent for $shortTitle, do it now!",
+          "No more delays on $shortTitle!",
+        ]);
+      case null:
+        break;
     }
 
-    // General goal-specific messages
+    // General goal-specific (3 messages instead of 15)
     messages.addAll([
       "Let's work on $shortTitle!",
-      "Time to focus on $shortTitle!",
-      "Keep going with $shortTitle!",
-      "Let's make progress on $shortTitle!",
-      "Stay on $shortTitle!",
-      "Don't forget about $shortTitle!",
-      "Let's get $shortTitle done!",
       "You got this with $shortTitle!",
-      "As if you'll forget about $shortTitle...",
-      "Sure, you'll get to $shortTitle later...",
-      "Not you being too busy for $shortTitle...",
-      "I'm sure you'll work on $shortTitle... eventually...",
-      "As if $shortTitle isn't important...",
-      "Sure, skip $shortTitle today...",
-      "Not you procrastinating on $shortTitle...",
+      "Don't forget about $shortTitle!",
     ]);
 
     return messages;
