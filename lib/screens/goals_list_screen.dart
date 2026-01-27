@@ -4,7 +4,6 @@ import '../services/service_locator.dart';
 import '../utils/constants.dart';
 import '../utils/logger.dart';
 import '../utils/progress_formatter.dart';
-import '../utils/snackbar_helper.dart';
 import '../utils/gamification.dart';
 import 'add_goal_screen.dart';
 import 'goal_detail_screen.dart';
@@ -58,7 +57,6 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
       AppLogger.error('Failed to load goals', e, stackTrace);
       if (mounted) {
         setState(() => _isLoading = false);
-        SnackBarHelper.showError(context, AppConstants.errorLoadFailed);
       }
     }
   }
@@ -83,22 +81,8 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
         return;
       }
       await _loadGoals();
-
-      if (mounted) {
-        SnackBarHelper.showSuccess(
-          context,
-          AppConstants.successProgressLogged,
-          duration: const Duration(seconds: 1),
-        );
-      }
     } catch (e, stackTrace) {
       AppLogger.error('Failed to log progress', e, stackTrace);
-      if (mounted) {
-        SnackBarHelper.showError(
-          context,
-          '${AppConstants.errorLogProgress}: ${e.toString()}',
-        );
-      }
     }
   }
 
@@ -131,12 +115,6 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
         await _loadGoals();
       } catch (e, stackTrace) {
         AppLogger.error('Failed to delete goal', e, stackTrace);
-        if (mounted) {
-          SnackBarHelper.showError(
-            context,
-            '${AppConstants.errorDeleteGoal}: ${e.toString()}',
-          );
-        }
       }
     }
   }
@@ -606,10 +584,15 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                     children: [
                       if (!isCompleted && goal.goalType == GoalType.daily)
                         IconButton(
-                          icon: const Icon(Icons.check_circle_outline),
+                          icon: const Icon(Icons.check),
                           onPressed: () => _logProgress(goal),
                           tooltip: 'Log Progress',
                           visualDensity: VisualDensity.compact,
+                          style: IconButton.styleFrom(
+                            foregroundColor: Theme.of(context).colorScheme.primary,
+                            minimumSize: const Size(36, 36),
+                            padding: EdgeInsets.zero,
+                          ),
                         ),
                       IconButton(
                         icon: const Icon(Icons.delete_outline),

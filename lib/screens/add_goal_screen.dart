@@ -4,7 +4,6 @@ import '../services/service_locator.dart';
 import '../utils/constants.dart';
 import '../utils/id_generator.dart';
 import '../utils/logger.dart';
-import '../utils/snackbar_helper.dart';
 import '../utils/validation.dart';
 import '../utils/app_colors.dart';
 
@@ -49,15 +48,12 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
 
   void _nextStep() {
     if (_currentStep == 0 && _titleController.text.trim().isEmpty) {
-      SnackBarHelper.showError(context, 'Please enter a goal name');
       return;
     }
     if (_currentStep == 1 && _goalType == null) {
-      SnackBarHelper.showError(context, 'Please choose a goal type');
       return;
     }
     if (_currentStep == 2 && _progressType == null) {
-      SnackBarHelper.showError(context, 'Please choose how to track progress');
       return;
     }
     
@@ -101,12 +97,10 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
     // Validate and sanitize milestone title
     final sanitized = Validation.sanitizeMilestoneTitle(text);
     if (sanitized == null) {
-      SnackBarHelper.showError(context, 'Please enter a valid milestone title');
       return;
     }
     
     if (_milestoneInputs.length >= AppConstants.maxMilestones) {
-      SnackBarHelper.showError(context, 'Maximum ${AppConstants.maxMilestones} milestones allowed');
       return;
     }
     
@@ -124,19 +118,16 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
 
   Future<void> _saveGoal() async {
     if (_titleController.text.trim().isEmpty) {
-      SnackBarHelper.showError(context, 'Please enter a goal name');
       return;
     }
 
     if (_progressType == ProgressType.milestones && _milestoneInputs.isEmpty) {
-      SnackBarHelper.showError(context, AppConstants.validationAddMilestone);
       return;
     }
 
     if (_progressType == ProgressType.numeric && _goalType == GoalType.longTerm) {
       final target = double.tryParse(_targetController.text);
       if (target == null || target <= 0) {
-        SnackBarHelper.showError(context, AppConstants.validationValidTarget);
         return;
       }
     }
@@ -187,12 +178,6 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
       }
     } catch (e, stackTrace) {
       AppLogger.error('Failed to save goal', e, stackTrace);
-      if (mounted) {
-        SnackBarHelper.showError(
-          context,
-          '${AppConstants.errorSaveFailed}: ${e.toString()}',
-        );
-      }
     }
   }
 

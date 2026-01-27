@@ -3,7 +3,6 @@ import '../domain/goal.dart';
 import '../services/service_locator.dart';
 import '../utils/constants.dart';
 import '../utils/logger.dart';
-import '../utils/snackbar_helper.dart';
 import '../utils/gamification.dart';
 import '../utils/app_colors.dart';
 
@@ -47,9 +46,6 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
       }
     } catch (e, stackTrace) {
       AppLogger.error('Failed to load goal', e, stackTrace);
-      if (mounted) {
-        SnackBarHelper.showError(context, AppConstants.errorLoadGoalDetails);
-      }
     }
   }
 
@@ -60,20 +56,9 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
       
       if (mounted) {
         _showCelebration();
-        SnackBarHelper.showSuccess(
-          context,
-          'Great job! +${Gamification.xpPerDailyCompletion} XP',
-          duration: const Duration(seconds: 2),
-        );
       }
     } catch (e, stackTrace) {
       AppLogger.error('Failed to log progress', e, stackTrace);
-      if (mounted) {
-        SnackBarHelper.showError(
-          context,
-          '${AppConstants.errorLogProgress}: ${e.toString()}',
-        );
-      }
     }
   }
 
@@ -85,33 +70,16 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
       if (mounted) {
         if (_percentageSliderValue >= 100) {
           _showCelebration();
-          SnackBarHelper.showSuccess(
-            context,
-            'Goal completed! +${Gamification.xpPerGoalCompleted} XP',
-          );
-        } else {
-          SnackBarHelper.showSuccess(
-            context,
-            'Progress updated!',
-            duration: const Duration(seconds: 1),
-          );
         }
       }
     } catch (e, stackTrace) {
       AppLogger.error('Failed to update percentage', e, stackTrace);
-      if (mounted) {
-        SnackBarHelper.showError(
-          context,
-          '${AppConstants.errorUpdateProgress}: ${e.toString()}',
-        );
-      }
     }
   }
 
   Future<void> _addNumericProgress() async {
     final value = double.tryParse(_progressController.text);
     if (value == null || value <= 0) {
-      SnackBarHelper.showError(context, AppConstants.validationValidNumber);
       return;
     }
 
@@ -124,26 +92,10 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
       if (mounted) {
         if (_goal.isCompleted) {
           _showCelebration();
-          SnackBarHelper.showSuccess(
-            context,
-            'Goal completed! +${Gamification.xpPerGoalCompleted} XP',
-          );
-        } else {
-          SnackBarHelper.showSuccess(
-            context,
-            'Progress updated!',
-            duration: const Duration(seconds: 1),
-          );
         }
       }
     } catch (e, stackTrace) {
       AppLogger.error('Failed to update progress', e, stackTrace);
-      if (mounted) {
-        SnackBarHelper.showError(
-          context,
-          '${AppConstants.errorUpdateProgress}: ${e.toString()}',
-        );
-      }
     }
   }
 
@@ -154,19 +106,9 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
       
       if (mounted && _goal.isCompleted) {
         _showCelebration();
-        SnackBarHelper.showSuccess(
-          context,
-          'Goal completed! +${Gamification.xpPerGoalCompleted} XP',
-        );
       }
     } catch (e, stackTrace) {
       AppLogger.error('Failed to toggle milestone', e, stackTrace);
-      if (mounted) {
-        SnackBarHelper.showError(
-          context,
-          '${AppConstants.errorUpdateProgress}: ${e.toString()}',
-        );
-      }
     }
   }
 
@@ -210,12 +152,6 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
         }
       } catch (e, stackTrace) {
         AppLogger.error('Failed to delete goal', e, stackTrace);
-        if (mounted) {
-          SnackBarHelper.showError(
-            context,
-            '${AppConstants.errorDeleteGoal}: ${e.toString()}',
-          );
-        }
       }
     }
   }
@@ -456,10 +392,6 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
               await _loadGoal();
               if (mounted) {
                 _showCelebration();
-                SnackBarHelper.showSuccess(
-                  context,
-                  'Goal completed! +${Gamification.xpPerGoalCompleted} XP',
-                );
               }
             },
       icon: const Icon(Icons.check_circle, size: 28),
