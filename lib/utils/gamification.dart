@@ -109,7 +109,7 @@ class Gamification {
   /// Get streak tier info for display
   static StreakTier getStreakTier(int streak) {
     if (streak >= 30) {
-      return StreakTier(
+      return const StreakTier(
         name: 'Legendary',
         flameCount: 4,
         color: AppColors.streakPlatinum,
@@ -118,7 +118,7 @@ class Gamification {
       );
     }
     if (streak >= 14) {
-      return StreakTier(
+      return const StreakTier(
         name: 'Epic',
         flameCount: 3,
         color: AppColors.streakGold,
@@ -127,7 +127,7 @@ class Gamification {
       );
     }
     if (streak >= 7) {
-      return StreakTier(
+      return const StreakTier(
         name: 'Hot',
         flameCount: 2,
         color: AppColors.streakSilver,
@@ -144,7 +144,7 @@ class Gamification {
         hasSparkles: false,
       );
     }
-    return StreakTier(
+    return const StreakTier(
       name: 'Start',
       flameCount: 0,
       color: AppColors.textSecondary,

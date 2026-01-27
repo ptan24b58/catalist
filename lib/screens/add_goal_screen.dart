@@ -22,7 +22,7 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
   final _milestoneController = TextEditingController();
   final List<String> _milestoneInputs = [];
 
-  GoalType? _goalType;
+  GoalType _goalType = GoalType.daily;
   ProgressType? _progressType;
   DateTime? _deadline;
   int _dailyTarget = 1;
@@ -65,7 +65,7 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
 
   bool get _isStep0Valid => _titleController.text.trim().isNotEmpty;
 
-  bool get _isStep1Valid => _goalType != null;
+  bool get _isStep1Valid => true; // _goalType defaults to daily
 
   bool get _isStep2Valid => _progressType != null;
 
@@ -99,9 +99,6 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
     if (_currentStep == 0 && _titleController.text.trim().isEmpty) {
       return;
     }
-    if (_currentStep == 1 && _goalType == null) {
-      return;
-    }
     if (_currentStep == 2 && _progressType == null) {
       return;
     }
@@ -111,7 +108,6 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
         _currentStep++;
         // Auto-select first progress type when goal type changes
         if (_currentStep == 2 && 
-            _goalType != null && 
             _progressType == null && 
             _availableProgressTypes.isNotEmpty) {
           _progressType = _availableProgressTypes.first;
@@ -209,7 +205,7 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
       final goal = Goal(
         id: IdGenerator.generate(),
         title: sanitizedTitle,
-        goalType: _goalType!,
+        goalType: _goalType,
         progressType: _progressType!,
         targetValue: targetValue,
         unit: _unitController.text.trim().isEmpty
@@ -764,15 +760,19 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
                     color: AppColors.catOrange,
                   ),
                 ),
-                Slider(
-                  value: _dailyTarget.toDouble(),
-                  min: 1,
-                  max: AppConstants.defaultMaxTarget.toDouble(),
-                  divisions: AppConstants.defaultMaxTarget - 1,
-                  onChanged: (value) {
-                    setState(() => _dailyTarget = value.toInt());
-                  },
-                  activeColor: AppColors.catOrange,
+                SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    activeTrackColor: AppColors.catOrange,
+                  ),
+                  child: Slider(
+                    value: _dailyTarget.toDouble(),
+                    min: 1,
+                    max: AppConstants.defaultMaxTarget.toDouble(),
+                    divisions: AppConstants.defaultMaxTarget - 1,
+                    onChanged: (value) {
+                      setState(() => _dailyTarget = value.toInt());
+                    },
+                  ),
                 ),
               ],
             ),

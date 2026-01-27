@@ -4,12 +4,20 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._(); // Private constructor to prevent instantiation
 
-  // ============ Cat Mascot Theme Colors ============
-  static const catOrange = Color(0xFFFF8C42);
-  static const catOrangeLight = Color(0xFFFFE4D1);
-  static const catCream = Color(0xFFFFF8F0);
-  static const catBlue = Color(0xFF5B9BD5);
+  // ============ Primary Palette (Ocean / Baby Blue) ============
+  /// Light purple – main primary (replaces #0284C7)
+  static const primary = Color(0xFFA78BFA);
+  /// Baby blue – light primary, backgrounds, tracks
+  static const primaryLight = Color(0xFFBAE6FD);
+  /// Soft blue-white – scaffold/surface tint
+  static const surfaceTint = Color(0xFFF0F9FF);
+  /// Medium blue – accents, links
+  static const catBlue = Color(0xFF0EA5E9);
   static const catGold = Color(0xFFFFB84D);
+  // Legacy aliases so existing UI uses new primary palette
+  static const catOrange = primary;
+  static const catOrangeLight = primaryLight;
+  static const catCream = surfaceTint;
 
   // ============ Text Colors ============
   static const textPrimary = Color(0xFF2C2C2C);
@@ -18,11 +26,12 @@ class AppColors {
 
   // ============ Semantic Colors ============
   static const error = Color(0xFFE57373);
-  static const success = Color(0xFF58CC02);
+  /// Softer teal – fits purple/blue without standing out.
+  static const success = Color(0xFF2DD4BF);
   static const warning = Color(0xFFFF9600);
 
-  // ============ Emotion/Mood Colors (Duolingo-inspired) ============
-  static const emotionHappy = Color(0xFF58CC02);
+  // ============ Emotion/Mood Colors ============
+  static const emotionHappy = Color(0xFF2DD4BF);
   static const emotionNeutral = Color(0xFF1CB0F6);
   static const emotionWorried = Color(0xFFFF9600);
   static const emotionSad = Color(0xFFFF4B4B);
@@ -33,7 +42,9 @@ class AppColors {
   static const surfaceWhite = Colors.white;
 
   // ============ Gamification Colors (Duolingo-inspired) ============
-  // Streak tier colors
+  /// Streak flame/emoji – always orange (unchanged by primary palette)
+  static const streakFlameOrange = Color(0xFFFF8C42);
+  // Streak tier colors (warm orange → gold)
   static const streakBronze = Color(0xFFFF8C42);      // 1-6 days
   static const streakSilver = Color(0xFFFF6B35);      // 7-13 days
   static const streakGold = Color(0xFFFF4500);        // 14-29 days
@@ -44,10 +55,12 @@ class AppColors {
   static const crownGoldDark = Color(0xFFDAA520);
   static const crownShine = Color(0xFFFFF8DC);
 
-  // XP colors
-  static const xpGreen = Color(0xFF58CC02);
-  static const xpGreenLight = Color(0xFF89E219);
-  static const xpBackground = Color(0xFFE5F8E0);
+  // XP / progress – 2DD4BF accent, CCFBF1 background
+  static const xpGreen = Color(0xFF2DD4BF);
+  static const xpGreenLight = Color(0xFF2DD4BF);
+  static const xpBackground = Color(0xFFCCFBF1);
+  /// Classic Duolingo-style green if you prefer it later
+  static const xpGreenLegacy = Color(0xFF58CC02);
 
   // Level badge colors
   static const levelBadgeGold = Color(0xFFFFB800);

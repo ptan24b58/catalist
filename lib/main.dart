@@ -45,7 +45,7 @@ class GoalTrackerApp extends StatelessWidget {
     return ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.light(
-        primary: AppColors.catOrange,
+        primary: AppColors.primary,
         onPrimary: Colors.white,
         secondary: AppColors.catBlue,
         onSecondary: Colors.white,
@@ -53,13 +53,13 @@ class GoalTrackerApp extends StatelessWidget {
         onTertiary: Colors.white,
         surface: Colors.white,
         onSurface: AppColors.textPrimary,
-        surfaceContainerHighest: AppColors.catCream,
+        surfaceContainerHighest: AppColors.surfaceTint,
         error: AppColors.error,
         onError: Colors.white,
-        outline: AppColors.catOrangeLight,
-        shadow: AppColors.catOrange.withValues(alpha: 0.2),
+        outline: AppColors.primaryLight,
+        shadow: AppColors.primary.withValues(alpha: 0.2),
       ),
-      scaffoldBackgroundColor: AppColors.catCream,
+      scaffoldBackgroundColor: AppColors.surfaceTint,
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -80,13 +80,13 @@ class GoalTrackerApp extends StatelessWidget {
         margin: EdgeInsets.zero,
       ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: AppColors.catOrange,
+        backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 4,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.catOrange,
+          backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(
@@ -108,20 +108,20 @@ class GoalTrackerApp extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: AppColors.catOrange, width: 2),
+          borderSide: const BorderSide(color: AppColors.primary, width: 2),
         ),
         contentPadding: const EdgeInsets.all(20),
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(
-        color: AppColors.catOrange,
-        linearTrackColor: AppColors.catOrangeLight,
+        color: AppColors.primary,
+        linearTrackColor: AppColors.primaryLight,
       ),
       iconTheme: const IconThemeData(
-        color: AppColors.catOrange,
+        color: AppColors.primary,
       ),
       chipTheme: ChipThemeData(
         backgroundColor: Colors.white,
-        selectedColor: AppColors.catOrange,
+        selectedColor: AppColors.primary,
         checkmarkColor: Colors.white,
         labelStyle: const TextStyle(
           color: AppColors.textPrimary,

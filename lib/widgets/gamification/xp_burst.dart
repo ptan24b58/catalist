@@ -126,5 +126,5 @@ class _XPEntry {
   final int id;
   final int amount;
 
-  _XPEntry({required this.id, required this.amount});
+  const _XPEntry({required this.id, required this.amount});
 }

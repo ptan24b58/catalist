@@ -184,7 +184,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                           children: [
                             StreakBadge(streak: _highestStreak, size: 22),
                             const SizedBox(width: 8),
-                            Text(
+                            const Text(
                               'day streak',
                               style: TextStyle(
                                 fontSize: 14,
@@ -517,7 +517,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
           Icon(
             Icons.local_fire_department,
             size: 14,
-            color: Theme.of(context).colorScheme.primary,
+            color: AppColors.streakFlameOrange,
           ),
           const SizedBox(width: 4),
           Text(

@@ -17,7 +17,8 @@ class StreakBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = Gamification.getStreakColor(streak);
+    final flameColor = streak > 0 ? AppColors.streakFlameOrange : AppColors.textSecondary.withValues(alpha: 0.4);
+    final textColor = streak > 0 ? Gamification.getStreakColor(streak) : AppColors.textSecondary.withValues(alpha: 0.4);
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -25,7 +26,7 @@ class StreakBadge extends StatelessWidget {
         Icon(
           Icons.local_fire_department,
           size: size,
-          color: streak > 0 ? color : AppColors.textSecondary.withValues(alpha: 0.4),
+          color: flameColor,
         ),
         if (showDays) ...[
           const SizedBox(width: 4),
@@ -34,7 +35,7 @@ class StreakBadge extends StatelessWidget {
             style: TextStyle(
               fontSize: size * 0.7,
               fontWeight: FontWeight.bold,
-              color: streak > 0 ? color : AppColors.textSecondary.withValues(alpha: 0.4),
+              color: textColor,
             ),
           ),
         ],
@@ -60,11 +61,11 @@ class StreakCard extends StatelessWidget {
 
     return Row(
       children: [
-        // Current streak
+        // Current streak – flame stays orange
         Expanded(
           child: _buildStatCard(
             icon: Icons.local_fire_department,
-            iconColor: tier.color,
+            iconColor: currentStreak > 0 ? AppColors.streakFlameOrange : AppColors.textSecondary,
             label: 'Current Streak',
             value: '$currentStreak',
             subtitle: 'days',

@@ -500,16 +500,20 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          Slider(
-            value: _percentageSliderValue,
-            min: 0,
-            max: 100,
-            divisions: 100,
-            label: '${_percentageSliderValue.toInt()}%',
-            onChanged: (value) {
-              setState(() => _percentageSliderValue = value);
-            },
-            activeColor: AppColors.catOrange,
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: AppColors.catOrange,
+            ),
+            child: Slider(
+              value: _percentageSliderValue,
+              min: 0,
+              max: 100,
+              divisions: 100,
+              label: '${_percentageSliderValue.toInt()}%',
+              onChanged: (value) {
+                setState(() => _percentageSliderValue = value);
+              },
+            ),
           ),
           const SizedBox(height: 16),
           ElevatedButton(
