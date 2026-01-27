@@ -228,50 +228,58 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: AppColors.catCream,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: AppColors.textPrimary),
+          icon: const Icon(Icons.close),
           onPressed: () => Navigator.pop(context),
         ),
+        title: Text(
+          'New goal',
+          style: theme.appBarTheme.titleTextStyle,
+        ),
+        centerTitle: true,
       ),
       body: SafeArea(
         child: Column(
           children: [
-            // Progress indicator
-            _buildProgressIndicator(),
-            
+            _buildProgressIndicator(context),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: _buildCurrentStep(),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                child: _buildCurrentStep(context),
               ),
             ),
-            
-            // Navigation buttons
-            _buildNavigationButtons(),
+            _buildNavigationButtons(context),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildProgressIndicator() {
+  Widget _buildProgressIndicator(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Row(
         children: List.generate(4, (index) {
           final isActive = index <= _currentStep;
           return Expanded(
             child: Container(
-              margin: EdgeInsets.only(right: index < 3 ? 8 : 0),
-              height: 4,
+              margin: EdgeInsets.only(right: index < 3 ? 4 : 0),
+              height: 6,
               decoration: BoxDecoration(
-                color: isActive ? AppColors.catOrange : AppColors.catOrangeLight,
-                borderRadius: BorderRadius.circular(2),
+                color: isActive
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(4),
               ),
             ),
           );
@@ -280,111 +288,111 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
     );
   }
 
-  Widget _buildCurrentStep() {
+  Widget _buildCurrentStep(BuildContext context) {
     switch (_currentStep) {
       case 0:
-        return _buildStep1Title();
+        return _buildStep1Title(context);
       case 1:
-        return _buildStep2GoalType();
+        return _buildStep2GoalType(context);
       case 2:
-        return _buildStep3ProgressType();
+        return _buildStep3ProgressType(context);
       case 3:
-        return _buildStep4Details();
+        return _buildStep4Details(context);
       default:
         return const SizedBox();
     }
   }
 
-  Widget _buildStep1Title() {
+  Widget _buildStep1Title(BuildContext context) {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'What do you want to achieve?',
+        Text(
+          'What do you want to track?',
           style: TextStyle(
-            fontSize: 24,
+            fontSize: 20,
             fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
+            color: theme.colorScheme.onSurface,
           ),
         ),
-        const SizedBox(height: 8),
-        const Text(
-          'Give your goal a name',
-          style: TextStyle(
-            fontSize: 14,
-            color: AppColors.textSecondary,
+        const SizedBox(height: 6),
+        const SizedBox(height: 20),
+        _wrapCard(
+          context,
+          child: TextField(
+            controller: _titleController,
+            autofocus: true,
+            style: TextStyle(fontSize: 15, color: theme.colorScheme.onSurface),
+            decoration: InputDecoration(
+              hintText: r'Drink 4 bottles of water? maybe...',
+              hintStyle: TextStyle(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+              ),
+              filled: false,
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            ),
+            onChanged: (_) => setState(() {}),
+            onSubmitted: (_) {
+              if (_canProceed) _nextStep();
+            },
           ),
-        ),
-        const SizedBox(height: 24),
-        TextField(
-          controller: _titleController,
-          autofocus: true,
-          style: const TextStyle(fontSize: 16),
-          decoration: InputDecoration(
-            hintText: r'e.g., Learn Spanish, Run 5K, Save $5000',
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide.none,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide.none,
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: AppColors.catOrange, width: 2),
-            ),
-            contentPadding: const EdgeInsets.all(20),
-          ),
-          onChanged: (_) => setState(() {}),
-          onSubmitted: (_) {
-            if (_canProceed) _nextStep();
-          },
         ),
       ],
     );
   }
 
-  Widget _buildStep2GoalType() {
+  Widget _wrapCard(BuildContext context, {required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+
+  Widget _buildStep2GoalType(BuildContext context) {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'How often?',
           style: TextStyle(
-            fontSize: 24,
+            fontSize: 20,
             fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
+            color: theme.colorScheme.onSurface,
           ),
         ),
-        const SizedBox(height: 8),
-        const Text(
-          'Choose how you want to track this goal',
-          style: TextStyle(
-            fontSize: 14,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 6),
+        const SizedBox(height: 20),
         _buildGoalTypeCard(
+          context,
           title: 'Daily',
           subtitle: 'Do it every day',
-          icon: Icons.today,
-          color: AppColors.catOrange,
+          icon: Icons.repeat,
           isSelected: _goalType == GoalType.daily,
           onTap: () => setState(() {
             _goalType = GoalType.daily;
             _progressType = null;
           }),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         _buildGoalTypeCard(
+          context,
           title: 'Long-term',
           subtitle: 'One big achievement',
-          icon: Icons.flag,
-          color: AppColors.catBlue,
+          icon: Icons.flag_outlined,
           isSelected: _goalType == GoalType.longTerm,
           onTap: () => setState(() {
             _goalType = GoalType.longTerm;
@@ -395,315 +403,324 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
     );
   }
 
-  Widget _buildGoalTypeCard({
+  Widget _buildGoalTypeCard(
+    BuildContext context, {
     required String title,
     required String subtitle,
     required IconData icon,
-    required Color color,
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: isSelected ? color.withValues(alpha: 0.08) : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected ? color : Colors.transparent,
-            width: 2,
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              size: 24,
-              color: isSelected ? color : AppColors.textSecondary,
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(24),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: isSelected
+                      ? theme.colorScheme.primary.withValues(alpha: 0.2)
+                      : theme.colorScheme.surfaceContainerHighest,
+                  child: Icon(
+                    icon,
+                    size: 20,
+                    color: isSelected
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                if (isSelected)
+                  Icon(Icons.check_circle, color: theme.colorScheme.primary, size: 24),
+              ],
             ),
-            if (isSelected)
-              Icon(Icons.check_circle, color: color, size: 24),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildStep3ProgressType() {
+  Widget _buildStep3ProgressType(BuildContext context) {
+    final theme = Theme.of(context);
     if (_availableProgressTypes.isEmpty) {
-      return const Center(
-        child: Text('Please select a goal type first'),
+      return Center(
+        child: Text(
+          'Please select a goal type first',
+          style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
+        ),
       );
     }
-    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'How to track?',
+        Text(
+          'Tracking method?',
           style: TextStyle(
-            fontSize: 24,
+            fontSize: 20,
             fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
+            color: theme.colorScheme.onSurface,
           ),
         ),
-        const SizedBox(height: 8),
-        const Text(
-          'Choose how you\'ll measure your progress',
-          style: TextStyle(
-            fontSize: 14,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 6),
+        const SizedBox(height: 20),
         ..._availableProgressTypes.map((type) {
           final isSelected = _progressType == type;
           return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: _buildProgressTypeCard(type, isSelected),
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _buildProgressTypeCard(context, type, isSelected),
           );
         }),
       ],
     );
   }
 
-  Widget _buildProgressTypeCard(ProgressType type, bool isSelected) {
-    final config = _getProgressTypeConfig(type);
-    return InkWell(
-      onTap: () => setState(() => _progressType = type),
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: isSelected ? config['color'].withOpacity(0.08) : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected ? config['color'] : Colors.transparent,
-            width: 2,
+  Widget _buildProgressTypeCard(BuildContext context, ProgressType type, bool isSelected) {
+    final theme = Theme.of(context);
+    final config = _getProgressTypeConfig(context, type);
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Icon(
-              config['icon'],
-              size: 24,
-              color: isSelected ? config['color'] : AppColors.textSecondary,
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    config['title'],
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => setState(() => _progressType = type),
+          borderRadius: BorderRadius.circular(24),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: isSelected
+                      ? config.color.withValues(alpha: 0.2)
+                      : theme.colorScheme.surfaceContainerHighest,
+                  child: Icon(
+                    config.icon,
+                    size: 20,
+                    color: isSelected ? config.color : theme.colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    config['subtitle'],
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        config.title,
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        config.subtitle,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                if (isSelected)
+                  Icon(Icons.check_circle, color: theme.colorScheme.primary, size: 24),
+              ],
             ),
-            if (isSelected)
-              Icon(Icons.check_circle, color: config['color'], size: 24),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Map<String, dynamic> _getProgressTypeConfig(ProgressType type) {
+  ({IconData icon, String title, String subtitle, Color color}) _getProgressTypeConfig(BuildContext context, ProgressType type) {
+    final theme = Theme.of(context);
     return switch (type) {
-      ProgressType.completion => {
-          'icon': Icons.check_circle_outline,
-          'title': 'Simple Check',
-          'subtitle': 'Just mark it done',
-          'color': AppColors.emotionHappy,
-        },
-      ProgressType.percentage => {
-          'icon': Icons.pie_chart_outline,
-          'title': 'Percentage',
-          'subtitle': 'Track 0-100% progress',
-          'color': AppColors.catBlue,
-        },
-      ProgressType.milestones => {
-          'icon': Icons.checklist,
-          'title': 'Milestones',
-          'subtitle': 'Complete step by step',
-          'color': AppColors.catGold,
-        },
-      ProgressType.numeric => {
-          'icon': Icons.trending_up,
-          'title': 'Numbers',
-          'subtitle': 'Track specific amounts',
-          'color': AppColors.catOrange,
-        },
+      ProgressType.completion => (
+          icon: Icons.check_circle_outline,
+          title: 'Simple Check',
+          subtitle: 'Just mark it done',
+          color: AppColors.xpGreen,
+        ),
+      ProgressType.percentage => (
+          icon: Icons.pie_chart_outline,
+          title: 'Percentage',
+          subtitle: 'Track 0-100% progress',
+          color: theme.colorScheme.secondary,
+        ),
+      ProgressType.milestones => (
+          icon: Icons.checklist,
+          title: 'Milestones',
+          subtitle: 'Complete step by step',
+          color: theme.colorScheme.tertiary,
+        ),
+      ProgressType.numeric => (
+          icon: Icons.trending_up,
+          title: 'Numeric',
+          subtitle: 'Track specific amounts',
+          color: theme.colorScheme.primary,
+        ),
     };
   }
 
-  Widget _buildStep4Details() {
+  Widget _buildStep4Details(BuildContext context) {
     if (_progressType == ProgressType.milestones) {
-      return _buildMilestonesStep();
+      return _buildMilestonesStep(context);
     }
     if (_progressType == ProgressType.numeric) {
-      return _buildNumericStep();
+      return _buildNumericStep(context);
     }
     if (_goalType == GoalType.longTerm && _progressType != ProgressType.milestones) {
-      return _buildDeadlineStep();
+      return _buildDeadlineStep(context);
     }
-    return _buildReviewStep();
+    return _buildReviewStep(context);
   }
 
-  Widget _buildMilestonesStep() {
+  Widget _buildMilestonesStep(BuildContext context) {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Add milestones',
           style: TextStyle(
-            fontSize: 24,
+            fontSize: 20,
             fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
+            color: theme.colorScheme.onSurface,
           ),
         ),
-        const SizedBox(height: 8),
-        const Text(
+        const SizedBox(height: 6),
+        Text(
           'Break your goal into smaller steps',
           style: TextStyle(
             fontSize: 14,
-            color: AppColors.textSecondary,
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
           ),
         ),
         const SizedBox(height: 20),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _milestoneController,
-                decoration: InputDecoration(
-                  hintText: 'e.g., Complete chapter 1',
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: AppColors.catOrangeLight),
+        _wrapCard(
+          context,
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _milestoneController,
+                  decoration: InputDecoration(
+                    hintText: 'e.g., Complete chapter 1',
+                    hintStyle: TextStyle(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                    ),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: AppColors.catOrangeLight),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: AppColors.catOrange, width: 2),
-                  ),
-                  contentPadding: const EdgeInsets.all(16),
+                  onSubmitted: (_) => _addMilestone(),
                 ),
-                onSubmitted: (_) => _addMilestone(),
               ),
-            ),
-            const SizedBox(width: 12),
-            IconButton(
-              onPressed: _canAddMilestone ? _addMilestone : null,
-              icon: const Icon(Icons.add),
-              style: IconButton.styleFrom(
-                backgroundColor: AppColors.catOrange,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: AppColors.catOrangeLight,
-                disabledForegroundColor: Colors.white.withValues(alpha: 0.6),
-                padding: const EdgeInsets.all(12),
+              const SizedBox(width: 8),
+              Material(
+                color: theme.colorScheme.primary,
+                borderRadius: BorderRadius.circular(12),
+                child: IconButton(
+                  onPressed: _canAddMilestone ? _addMilestone : null,
+                  icon: const Icon(Icons.add, color: Colors.white),
+                  style: IconButton.styleFrom(
+                    disabledBackgroundColor: theme.colorScheme.surfaceContainerHighest,
+                    disabledForegroundColor: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-        const SizedBox(height: 24),
         if (_milestoneInputs.isNotEmpty) ...[
+          const SizedBox(height: 12),
           ..._milestoneInputs.asMap().entries.map((entry) {
             return Container(
-              margin: const EdgeInsets.only(bottom: 12),
+              margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
               child: Row(
                 children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: AppColors.catOrangeLight,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Center(
-                      child: Text(
-                        '${entry.key + 1}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.catOrange,
-                        ),
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: theme.colorScheme.primaryContainer,
+                    child: Text(
+                      '${entry.key + 1}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: theme.colorScheme.onPrimaryContainer,
                       ),
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Expanded(child: Text(entry.value)),
+                  Expanded(
+                    child: Text(
+                      entry.value,
+                      style: const TextStyle(fontSize: 15),
+                    ),
+                  ),
                   IconButton(
-                    icon: const Icon(Icons.close, size: 20),
+                    icon: Icon(Icons.close, size: 20, color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
                     onPressed: () => _removeMilestone(entry.key),
                   ),
                 ],
@@ -715,54 +732,45 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
     );
   }
 
-  Widget _buildNumericStep() {
+  Widget _buildNumericStep(BuildContext context) {
+    final theme = Theme.of(context);
     if (_goalType == GoalType.daily) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-        const Text(
-          'Daily target',
-          style: TextStyle(
-              fontSize: 24,
+          Text(
+            'Daily target',
+            style: TextStyle(
+              fontSize: 20,
               fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
+              color: theme.colorScheme.onSurface,
             ),
           ),
-          const SizedBox(height: 8),
-          const Text(
+          const SizedBox(height: 6),
+          Text(
             'How many do you want to do each day?',
             style: TextStyle(
               fontSize: 14,
-              color: AppColors.textSecondary,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
             ),
           ),
-          const SizedBox(height: 24),
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
+          const SizedBox(height: 20),
+          _wrapCard(
+            context,
             child: Column(
               children: [
                 Text(
                   '$_dailyTarget',
-                  style: const TextStyle(
-                    fontSize: 48,
+                  style: TextStyle(
+                    fontSize: 44,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.catOrange,
+                    color: theme.colorScheme.primary,
                   ),
                 ),
                 SliderTheme(
                   data: SliderTheme.of(context).copyWith(
-                    activeTrackColor: AppColors.catOrange,
+                    activeTrackColor: theme.colorScheme.primary,
+                    thumbColor: theme.colorScheme.primary,
                   ),
                   child: Slider(
                     value: _dailyTarget.toDouble(),
@@ -777,209 +785,190 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _unitController,
-            decoration: InputDecoration(
-              hintText: 'Unit (optional): e.g., glasses, reps, pages',
-              filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: AppColors.catOrangeLight),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: AppColors.catOrangeLight),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: AppColors.catOrange, width: 2),
-              ),
-              contentPadding: const EdgeInsets.all(16),
-            ),
-          ),
-        ],
-      );
-    } else {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Set your target',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'What\'s your goal number?',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              Expanded(
-                flex: 2,
-                child: TextField(
-                  controller: _targetController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  style: const TextStyle(fontSize: 16),
-                  decoration: InputDecoration(
-                    hintText: '5000',
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: AppColors.catOrangeLight),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: AppColors.catOrangeLight),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: AppColors.catOrange, width: 2),
-                    ),
-                    contentPadding: const EdgeInsets.all(16),
-                  ),
-                  onChanged: (_) => setState(() {}),
+          const SizedBox(height: 12),
+          _wrapCard(
+            context,
+            child: TextField(
+              controller: _unitController,
+              decoration: InputDecoration(
+                hintText: 'Unit (optional): e.g., glasses, reps, pages',
+                hintStyle: TextStyle(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                 ),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextField(
-                  controller: _unitController,
-                  decoration: InputDecoration(
-                    hintText: 'Unit',
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: AppColors.catOrangeLight),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: AppColors.catOrangeLight),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: AppColors.catOrange, width: 2),
-                    ),
-                    contentPadding: const EdgeInsets.all(16),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ],
       );
     }
-  }
-
-  Widget _buildDeadlineStep() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'When\'s your deadline?',
+        Text(
+          'Set your target',
           style: TextStyle(
-            fontSize: 24,
+            fontSize: 20,
             fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
+            color: theme.colorScheme.onSurface,
           ),
         ),
-        const SizedBox(height: 8),
-        const Text(
+        const SizedBox(height: 6),
+        Text(
+          'What\'s your goal number?',
+          style: TextStyle(
+            fontSize: 14,
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: _wrapCard(
+                context,
+                child: TextField(
+                  controller: _targetController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  style: const TextStyle(fontSize: 17),
+                  decoration: InputDecoration(
+                    hintText: '5000',
+                    hintStyle: TextStyle(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                    ),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _wrapCard(
+                context,
+                child: TextField(
+                  controller: _unitController,
+                  decoration: InputDecoration(
+                    hintText: 'Unit',
+                    hintStyle: TextStyle(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                    ),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDeadlineStep(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'When\'s your deadline?',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
           'Set a deadline to stay motivated (optional)',
           style: TextStyle(
             fontSize: 14,
-            color: AppColors.textSecondary,
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
           ),
         ),
-        const SizedBox(height: 24),
-        OutlinedButton.icon(
-          onPressed: _selectDeadline,
-          icon: const Icon(Icons.calendar_today, size: 20),
-          label: Text(
-            _deadline == null
-                ? 'Pick a date'
-                : '${_deadline!.month}/${_deadline!.day}/${_deadline!.year}',
-            style: const TextStyle(fontSize: 16),
-          ),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.catOrange,
-            side: const BorderSide(color: AppColors.catOrange),
-            padding: const EdgeInsets.all(16),
-            minimumSize: const Size(double.infinity, 48),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
+        const SizedBox(height: 20),
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: _selectDeadline,
+            borderRadius: BorderRadius.circular(24),
+            child: _wrapCard(
+              context,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.calendar_today,
+                    size: 22,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 16),
+                  Text(
+                    _deadline == null
+                        ? 'Pick a date'
+                        : '${_deadline!.month}/${_deadline!.day}/${_deadline!.year}',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w500,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
         if (_deadline != null) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           TextButton(
             onPressed: () => setState(() => _deadline = null),
-            child: const Text('Remove deadline'),
+            child: Text(
+              'Remove deadline',
+              style: TextStyle(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                fontSize: 14,
+              ),
+            ),
           ),
         ],
       ],
     );
   }
 
-  Widget _buildReviewStep() {
+  Widget _buildReviewStep(BuildContext context) {
+    final theme = Theme.of(context);
+    final config = _progressType != null ? _getProgressTypeConfig(context, _progressType!) : null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Ready to go',
+        Text(
+          'Review your goal and let\'s start!',
           style: TextStyle(
-            fontSize: 24,
+            fontSize: 20,
             fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
+            color: theme.colorScheme.onSurface,
           ),
         ),
-        const SizedBox(height: 8),
-        const Text(
-          'Review your goal and let\'s start',
-          style: TextStyle(
-            fontSize: 14,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        const SizedBox(height: 24),
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
+        const SizedBox(height: 6),
+        const SizedBox(height: 20),
+        _wrapCard(
+          context,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 _titleController.text,
                 style: const TextStyle(
-                  fontSize: 18,
+                  fontSize: 17,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 16),
-              _buildReviewItem('Type', _goalType == GoalType.daily ? 'Daily' : 'Long-term'),
-              _buildReviewItem('Tracking', _getProgressTypeConfig(_progressType!)['title']),
+              _buildReviewItem(context, 'Type', _goalType == GoalType.daily ? 'Daily' : 'Long-term'),
+              if (config != null)
+                _buildReviewItem(context, 'Tracking', config.title),
             ],
           ),
         ),
@@ -987,7 +976,8 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
     );
   }
 
-  Widget _buildReviewItem(String label, String value) {
+  Widget _buildReviewItem(BuildContext context, String label, String value) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -995,16 +985,17 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
         children: [
           Text(
             label,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 16,
+            style: TextStyle(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              fontSize: 15,
             ),
           ),
           Text(
             value,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 15,
+              color: theme.colorScheme.onSurface,
             ),
           ),
         ],
@@ -1012,67 +1003,72 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
     );
   }
 
-  Widget _buildNavigationButtons() {
+  Widget _buildNavigationButtons(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
             offset: const Offset(0, -2),
           ),
         ],
       ),
-      child: Row(
-        children: [
-          if (_currentStep > 0)
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            if (_currentStep > 0) ...[
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _previousStep,
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: BorderSide(color: theme.colorScheme.primary, width: 2),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    'Back',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+            ],
             Expanded(
-              child: OutlinedButton(
-                onPressed: _previousStep,
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  side: const BorderSide(color: AppColors.catOrange, width: 2),
+              flex: _currentStep == 0 ? 1 : 2,
+              child: ElevatedButton(
+                onPressed: _canProceed ? (_currentStep == 3 ? _saveGoal : _nextStep) : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.colorScheme.primary,
+                  foregroundColor: theme.colorScheme.onPrimary,
+                  disabledBackgroundColor: theme.colorScheme.surfaceContainerHighest,
+                  disabledForegroundColor: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text(
-                  'Back',
-                  style: TextStyle(
-                    fontSize: 16,
+                child: Text(
+                  _currentStep == 3 ? 'Create Goal' : 'Continue',
+                  style: const TextStyle(
+                    fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.catOrange,
                   ),
                 ),
               ),
             ),
-          if (_currentStep > 0) const SizedBox(width: 12),
-          Expanded(
-            flex: _currentStep == 0 ? 1 : 2,
-            child: ElevatedButton(
-              onPressed: _canProceed ? (_currentStep == 3 ? _saveGoal : _nextStep) : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.catOrange,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: AppColors.catOrangeLight,
-                disabledForegroundColor: Colors.white.withValues(alpha: 0.6),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-              child: Text(
-                _currentStep == 3 ? 'Create Goal' : 'Continue',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -110,7 +110,7 @@ class GoalTrackerApp extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: AppColors.primary, width: 2),
         ),
-        contentPadding: const EdgeInsets.all(20),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(
         color: AppColors.primary,

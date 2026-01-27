@@ -58,14 +58,15 @@ class StreakCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tier = Gamification.getStreakTier(currentStreak);
+    final theme = Theme.of(context);
 
     return Row(
       children: [
-        // Current streak – flame stays orange
         Expanded(
           child: _buildStatCard(
+            context,
             icon: Icons.local_fire_department,
-            iconColor: currentStreak > 0 ? AppColors.streakFlameOrange : AppColors.textSecondary,
+            iconColor: currentStreak > 0 ? AppColors.streakFlameOrange : theme.colorScheme.onSurface.withValues(alpha: 0.5),
             label: 'Current Streak',
             value: '$currentStreak',
             subtitle: 'days',
@@ -74,9 +75,9 @@ class StreakCard extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-        // Best streak
         Expanded(
           child: _buildStatCard(
+            context,
             icon: Icons.emoji_events,
             iconColor: AppColors.catGold,
             label: 'Best Streak',
@@ -88,7 +89,8 @@ class StreakCard extends StatelessWidget {
     );
   }
 
-  Widget _buildStatCard({
+  Widget _buildStatCard(
+    BuildContext context, {
     required IconData icon,
     required Color iconColor,
     required String label,
@@ -97,15 +99,16 @@ class StreakCard extends StatelessWidget {
     String? badge,
     Color? badgeColor,
   }) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
@@ -116,9 +119,9 @@ class StreakCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
-              color: AppColors.textSecondary,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
             ),
           ),
           const SizedBox(height: 4),
@@ -132,9 +135,9 @@ class StreakCard extends StatelessWidget {
           ),
           Text(
             subtitle,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
-              color: AppColors.textSecondary,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
             ),
           ),
           if (badge != null) ...[
