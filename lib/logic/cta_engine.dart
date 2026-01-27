@@ -1,6 +1,7 @@
 import '../domain/mascot_state.dart';
 import '../models/widget_snapshot.dart';
 import 'urgency_engine.dart';
+import 'cta_messages.dart';
 
 /// Generates dynamic, personalized CTAs with Gen Z-focused messaging
 /// 
@@ -11,6 +12,7 @@ import 'urgency_engine.dart';
 /// - Mascot emotion and personality
 class CTAEngine {
   /// Generate a personalized CTA for the widget
+  /// Rotates messages frequently based on time and goal status
   static String generateCTA({
     required TopGoal? topGoal,
     required MascotState mascot,
@@ -32,7 +34,7 @@ class CTAEngine {
       return _getCompletedCTA(now, goalType);
     }
 
-    // Generate CTA based on urgency level and mascot emotion
+    // Generate CTA based on urgency level, progress state, time, and mascot emotion
     return _generateContextualCTA(
       urgencyLevel: urgencyLevel,
       emotion: mascot.emotion,
@@ -45,151 +47,38 @@ class CTAEngine {
   }
 
   /// Get CTA for empty state (no goals)
+  /// Rotates messages frequently based on time of day
   static String _getEmptyStateCTA(DateTime now) {
     final hour = now.hour;
-    final messages = [
-      if (hour >= 6 && hour < 12) ...[
-        "Yo what we doing today?",
-        "Add something rq, let's get it",
-        "What's the plan? Ngl we should add one",
-        "I'm here, what's your move?",
-        "Add a goal, we'll get it done",
-        "What you got planned? Lowkey add one",
-        "Let's set something up fr",
-        "What we working on? Add one",
-        "Add one and we'll get started",
-        "What's on your mind? Let's add something",
-        "Let's add something fr, no cap",
-        "What you trying to do? Add it",
-        "Add a goal, I got you fr",
-        "What's the move? Let's add one",
-        "Set something rq, we got this",
-        "Add one, let's go",
-        "What we doing? Add something",
-        "Lowkey should add a goal",
-      ] else if (hour >= 12 && hour < 18) ...[
-        "What's the move? Add something",
-        "Add something and let's go",
-        "What we doing? Add one rq",
-        "Let's add one, we got time",
-        "What you got? Add it",
-        "Add a goal, we chilling",
-        "What's on your list? Add one",
-        "Let's set something up fr",
-        "Add one and let's do it, no cap",
-        "What you working on? Add it",
-        "Let's add something",
-        "What's the plan? Add one",
-        "Add one, I'm here fr",
-        "What we doing? Lowkey add one",
-        "Let's get something going, add it",
-        "Add one, we got this",
-        "Highkey should add a goal",
-        "Add something rq, let's go",
-      ] else if (hour >= 18 && hour < 22) ...[
-        "One more before bed? Add it",
-        "What we doing tonight? Add one",
-        "Add one rq, let's finish strong",
-        "One more thing?",
-        "What's the move? Add one",
-        "Add one and let's wrap it, fr",
-        "One more before sleep? Let's go",
-        "What you got left? Add it",
-        "Let's add one more",
-        "One more push? Add it",
-        "What's on your mind? Add one",
-        "Add one rq, no cap",
-        "Let's do one more",
-        "What we finishing? Add it",
-        "Add one more",
-        "Lowkey one more before bed",
-        "Add one, we got this fr",
-      ] else ...[
-        "Late night? Add one for tmrw",
-        "Set something for tmrw, future you will thank you",
-        "Add one for when you wake up",
-        "Set it now, thank yourself later fr",
-        "What you doing tmrw? Add it",
-        "Add one for the morning, we got this",
-        "Set something for tmrw, no cap",
-        "Future you got this, add one",
-        "Add one, I'll remind you fr",
-        "What's the plan for tmrw? Add it",
-        "Set it for tmrw",
-        "Add one, we'll get it done, no cap",
-        "Late night planning? Add it",
-        "Set something for when you're up, fr",
-        "Add one for tmrw",
-        "Lowkey set it for tomorrow",
-        "Add one, future you will be happy",
-      ]
-    ];
-
-    return _randomSelect(messages);
+    final messages = _getEmptyStateMessages(hour);
+    return _selectRotatingMessage(messages, now);
   }
 
-  /// Get CTA for completed goals
-  static String _getCompletedCTA(DateTime now, String goalType) {
-    if (goalType == 'daily') {
-      return _randomSelect([
-        "You did it! That's a W fr",
-        "You ate that, period",
-        "You slayed, no cap",
-        "Big W, you're him fr",
-        "That's it, you did that",
-        "Period, you got it",
-        "You're that girl, fr",
-        "That's fire, keep going",
-        "You're him, no cap",
-        "That's a dub, you're different",
-        "You did that, I'm proud fr",
-        "That's it right there",
-        "Period, you're built different",
-        "You're actually him, fr",
-        "That's a major W, no cap",
-        "You're built different",
-        "That's crazy, you did that",
-        "You're him for that",
-        "That's actually wild, fr",
-        "You're different, no cap",
-        "That's a big W, you ate",
-        "You're actually different",
-        "That's it fr, keep it up",
-        "You're him, that's a fact",
-        "That's a W, you're that person",
-      ]);
+  /// Get empty state messages based on time of day
+  static List<String> _getEmptyStateMessages(int hour) {
+    if (hour >= 6 && hour < 12) {
+      return CTAMessages.emptyStateMorning;
+    } else if (hour >= 12 && hour < 18) {
+      return CTAMessages.emptyStateAfternoon;
+    } else if (hour >= 18 && hour < 22) {
+      return CTAMessages.emptyStateEvening;
     } else {
-      return _randomSelect([
-        "You did that! That's huge fr",
-        "Major W, you're different",
-        "That's crazy, you're built different",
-        "That's actually insane, no cap",
-        "That's wild, you did that",
-        "You're actually crazy, fr",
-        "That's actually wild",
-        "You're him fr, that's huge",
-        "That's a major dub, no cap",
-        "You're different for that",
-        "That's actually crazy, fr",
-        "You're built different",
-        "That's huge fr, I'm proud",
-        "You're actually him",
-        "That's wild fr, no cap",
-        "You're different, that's a fact",
-        "That's actually different",
-        "You're him for that, fr",
-        "That's a big W",
-        "You're actually built different",
-        "That's crazy fr, no cap",
-        "You're different for real, fr",
-        "That's actually wild, you did that",
-        "You're him, that's insane",
-        "That's a major W, you're different",
-      ]);
+      return CTAMessages.emptyStateNight;
     }
   }
 
-  /// Generate contextual CTA based on urgency and emotion
+  /// Get CTA for completed goals
+  /// Rotates messages frequently to celebrate achievements
+  static String _getCompletedCTA(DateTime now, String goalType) {
+    final messages = List<String>.from(
+      goalType == 'daily'
+          ? CTAMessages.completedDaily
+          : CTAMessages.completedLongTerm
+    );
+    return _selectRotatingMessage(messages, now);
+  }
+
+  /// Generate contextual CTA based on urgency, progress state, time, and emotion
   static String _generateContextualCTA({
     required UrgencyLevel urgencyLevel,
     required MascotEmotion emotion,
@@ -201,50 +90,35 @@ class CTAEngine {
   }) {
     // Celebrate emotion gets special treatment
     if (emotion == MascotEmotion.celebrate) {
-      return _randomSelect([
-        "You're on fire, keep it going fr",
-        "Don't stop, you're on one",
-        "Ride the wave, you got this, no cap",
-        "You're in your bag, keep going",
-        "This is your moment, don't let up",
-        "Keep the energy, you're locked in, fr",
-        "You're on fire fr, keep pushing, no cap",
-        "Don't slow down, you're on a roll",
-        "Keep going strong, I see you, fr",
-        "You're in the zone, don't break it",
-        "Keep that vibe going, no cap",
-        "You're on one fr, keep it up",
-        "Don't let it stop, you're doing great",
-        "Keep that energy, you're different, fr",
-        "You're locked in, keep going, no cap",
-        "Don't break the streak, you got this",
-        "Keep going hard, I'm here for it, fr",
-        "You're on fire, keep the momentum, no cap",
-        "Don't let up now, you're winning",
-        "Keep the flow, you're doing it",
-        "You're in your era, keep going",
-        "This is your time, don't stop",
-        "You're winning, keep it up",
-      ]);
+      final messages = List<String>.from(CTAMessages.celebrate);
+      final shortTitle = _getShortTitle(goalTitle);
+      if (shortTitle != null) {
+        messages.addAll([
+          "Keep crushing $shortTitle!",
+          "You're on fire with $shortTitle!",
+          "Don't stop on $shortTitle!",
+          "Keep the momentum with $shortTitle!",
+          "You're winning with $shortTitle!",
+        ]);
+      }
+      return _selectRotatingMessage(messages, now);
     }
 
-    // Combine urgency level with emotion for nuanced messaging
+    // Combine urgency level with progress state and time for nuanced messaging
     switch (urgencyLevel) {
       case UrgencyLevel.low:
         return _getLowUrgencyCTA(emotion, progress, goalType, now, progressLabel, goalTitle);
-
       case UrgencyLevel.medium:
         return _getMediumUrgencyCTA(emotion, progress, goalType, now, progressLabel, goalTitle);
-
       case UrgencyLevel.high:
         return _getHighUrgencyCTA(emotion, progress, goalType, now, progressLabel, goalTitle);
-
       case UrgencyLevel.critical:
         return _getCriticalUrgencyCTA(emotion, progress, goalType, now, progressLabel, goalTitle);
     }
   }
 
   /// Low urgency - ahead of schedule or on track
+  /// Messages adapt to progress state and time of day
   static String _getLowUrgencyCTA(
     MascotEmotion emotion,
     double progress,
@@ -253,57 +127,39 @@ class CTAEngine {
     String? progressLabel,
     String? goalTitle,
   ) {
-    final shortTitle = goalTitle != null && goalTitle.length > 15 
-        ? goalTitle.substring(0, 15) + "..." 
-        : goalTitle;
-    
+    final shortTitle = _getShortTitle(goalTitle);
+    final progressState = _getProgressState(progress);
+    final timeContext = _getTimeContext(now.hour);
+    final messages = <String>[];
+
     if (emotion == MascotEmotion.happy) {
-      return _randomSelect([
-        "You're ahead, keep it up",
-        "You're doing great, stay on it, fr",
-        "You got this, you're chilling, no cap",
-        "You're ahead fr, keep going",
-        "You're doing amazing, I see you",
-        "Stay locked in, you're winning",
-        "You got this fr, keep pushing, no cap",
-        "You're good, keep that energy",
-        "You're chilling fr, all good, no cap",
-        "You're ahead of it, keep it up",
-        "You're doing great, stay on that grind, fr",
-        "You're built for this, keep going",
-        "You're good to go, keep it moving, no cap",
-        "You're chilling and winning, keep it up",
-        "All good, you're ahead and winning, fr",
-        "Keep that momentum, you're doing it right",
-        if (shortTitle != null) "You're ahead on $shortTitle, keep going",
-        if (progressLabel != null) "You're at $progressLabel, keep going",
-      ]);
+      _addProgressMessages(messages, progressState, 
+        CTAMessages.lowUrgencyHappyEarly,
+        CTAMessages.lowUrgencyHappyMid,
+        CTAMessages.lowUrgencyHappyNearComplete);
+      
+      _addTimeContextMessages(messages, timeContext,
+        CTAMessages.lowUrgencyHappyMorning,
+        null,
+        CTAMessages.lowUrgencyHappyEvening,
+        null);
+      
+      messages.addAll(CTAMessages.lowUrgencyHappyGeneral);
+    } else {
+      _addProgressMessages(messages, progressState,
+        CTAMessages.lowUrgencyNeutralEarly,
+        null,
+        CTAMessages.lowUrgencyNeutralNearComplete);
+      
+      messages.addAll(CTAMessages.lowUrgencyNeutralGeneral);
     }
 
-    // Neutral but low urgency
-    return _randomSelect([
-      "You got this, keep going",
-      "You're on track, doing good, fr",
-      "Keep it up, you're fine, no cap",
-      "All good, you're good",
-      "You got this fr, keep pushing, no cap",
-      "You're on track fr, keep going",
-      "Doing good fr, you're locked in, no cap",
-      "Keep it up fr, you're on it",
-      "You're fine fr, all good, no cap",
-      "You're good fr, keep it moving",
-      "You're chilling, doing great, fr",
-      "Keep it moving, you're doing fine",
-      "All good, keep going, you got this, no cap",
-      "You're on it, keep pushing",
-      "You're good to go, doing great, fr",
-      "You're locked in, keep that energy",
-      if (shortTitle != null) "You're on track with $shortTitle",
-      if (progressLabel != null) "You're at $progressLabel, all good, fr",
-    ]);
+    _addContextualMessages(messages, shortTitle, progressLabel);
+    return _selectRotatingMessage(messages, now);
   }
 
   /// Medium urgency - normal pace
+  /// Messages adapt to progress state, time of day, and goal type
   static String _getMediumUrgencyCTA(
     MascotEmotion emotion,
     double progress,
@@ -312,139 +168,39 @@ class CTAEngine {
     String? progressLabel,
     String? goalTitle,
   ) {
-    final hour = now.hour;
-    final timeContext = _getTimeContext(hour);
-    final shortTitle = goalTitle != null && goalTitle.length > 15 
-        ? goalTitle.substring(0, 15) + "..." 
-        : goalTitle;
+    final timeContext = _getTimeContext(now.hour);
+    final progressState = _getProgressState(progress);
+    final shortTitle = _getShortTitle(goalTitle);
+    final messages = <String>[];
 
     if (emotion == MascotEmotion.worried) {
-      return _randomSelect([
-        "Let's get back on it, you got this",
-        "Time to focus, pick it up, fr",
-        "You got this, let's go, no cap",
-        "Pick it up, we got this",
-        "Let's go, time to move, fr",
-        "Time to focus, let's get back on track",
-        "You got this fr, let's lock in, no cap",
-        "Pick it up fr, we can do this",
-        "Let's go fr, time to get serious, no cap",
-        "Time to focus fr, you got this",
-        "Let's get it together, we got this, fr",
-        "Time to get serious, let's turn it around",
-        "You got this no cap, pick it up, fr",
-        "Pick it up now, we're in this together",
-        "Let's turn it around, you got this, no cap",
-        "Time to get on it, let's go",
-        "Let's get back on it",
-        "Lowkey time to focus up",
-        if (shortTitle != null) "Let's get back on $shortTitle",
-        if (progressLabel != null) "You're at $progressLabel, let's pick it up, fr",
-      ]);
+      _addProgressMessages(messages, progressState,
+        CTAMessages.mediumUrgencyWorriedEarly,
+        null,
+        CTAMessages.mediumUrgencyWorriedNearComplete);
+      
+      messages.addAll(CTAMessages.mediumUrgencyWorriedGeneral);
+    } else {
+      _addProgressMessages(messages, progressState,
+        CTAMessages.mediumUrgencyDefaultEarly,
+        null,
+        CTAMessages.mediumUrgencyDefaultNearComplete);
+      
+      _addTimeContextMessages(messages, timeContext,
+        CTAMessages.mediumUrgencyMorning,
+        CTAMessages.mediumUrgencyAfternoon,
+        CTAMessages.mediumUrgencyEvening,
+        CTAMessages.mediumUrgencyNight);
+      
+      messages.addAll(CTAMessages.mediumUrgencyGeneral);
     }
 
-    // Default medium urgency messages
-    return _randomSelect([
-      if (timeContext == TimeContext.morning) ...[
-        "Morning grind, let's get it",
-        "Let's get it, start strong, fr",
-        "Start strong, time to move",
-        "Time to move, morning vibes, no cap",
-        "Let's get it started, you got this",
-        "Start the day right, let's go, fr",
-        "Time to get on it, morning energy",
-        "Let's get it fr, start strong, no cap",
-        "Start strong fr, we got this",
-        "Time to move fr, let's get this day",
-        "Morning grind fr, start it off right, no cap",
-        "Let's get this day, time to get going",
-        "Start it off right, morning move, fr",
-        "Time to get going, let's get it going",
-        "Morning move, start it up, no cap",
-        "Let's get it this morning",
-        "Lowkey morning grind time",
-        if (shortTitle != null) "Let's get $shortTitle done this morning",
-        if (progressLabel != null) "You're at $progressLabel, let's keep going, fr",
-      ] else if (timeContext == TimeContext.afternoon) ...[
-        "Afternoon vibes, keep going",
-        "Keep going, you're good, fr",
-        "You're good, let's do it",
-        "Let's do it, afternoon energy, no cap",
-        "Afternoon energy, keep pushing",
-        "Keep pushing, you're doing good, fr",
-        "You're doing good, let's keep it going",
-        "Let's keep it going, afternoon grind, no cap",
-        "Afternoon grind, keep going fr",
-        "Keep going fr, you're good fr, no cap",
-        "You're good fr, let's do it fr",
-        "Let's do it fr, afternoon move, no cap",
-        "Afternoon move, keep that energy",
-        "Keep that energy, you're on it, fr",
-        "You're on it, let's keep pushing",
-        "Afternoon vibes",
-        "Lowkey keep pushing",
-        if (shortTitle != null) "Let's keep working on $shortTitle",
-        if (progressLabel != null) "You're at $progressLabel, keep pushing, fr",
-      ] else if (timeContext == TimeContext.evening) ...[
-        "Finish strong, last push",
-        "Last push, almost there, fr",
-        "Almost there, let's wrap it",
-        "Let's wrap it, finish it up, no cap",
-        "Finish it up, last push fr",
-        "Last push fr, almost there fr, no cap",
-        "Almost there fr, let's wrap it up",
-        "Let's wrap it up, finish strong fr, no cap",
-        "Finish strong fr, last push of the day",
-        "Last push of the day, almost done, fr",
-        "Almost done, let's finish it",
-        "Let's finish it, wrap it up, no cap",
-        "Wrap it up, last one",
-        "Last one, almost there keep going, fr",
-        "Almost there keep going, let's finish strong",
-        "Last push, let's go",
-        "Lowkey almost there",
-        if (shortTitle != null) "Let's finish $shortTitle strong",
-        if (progressLabel != null) "You're at $progressLabel, almost there, fr",
-      ] else ...[
-        "Late night, you got this",
-        "You got this, keep going, fr",
-        "Keep going, one more thing",
-        "One more thing, late night grind, no cap",
-        "Late night grind, you got this fr",
-        "You got this fr, keep going fr, no cap",
-        "Keep going fr, one more thing fr",
-        "One more thing fr, late night vibes, no cap",
-        "Late night vibes, you got this keep going",
-        "You got this keep going, keep pushing, fr",
-        "Keep pushing, one more push",
-        "One more push, late night energy, no cap",
-        "Late night energy, you got this no cap",
-        "You got this no cap, keep going strong, fr",
-        "Keep going strong, one more before bed",
-        "One more before bed",
-        "Lowkey late night grind",
-        if (shortTitle != null) "Let's finish $shortTitle before bed",
-        if (progressLabel != null) "You're at $progressLabel, one more push, fr",
-      ],
-      "Let's go, you're on it",
-      "Time to move, let's do it, fr",
-      "You're on it, let's go fr",
-      "Let's do it, time to move fr, no cap",
-      "You're on it fr, let's get it",
-      "Let's get it, time to get on it, fr",
-      "You're locked in, let's keep going",
-      "Let's keep going, time to push, no cap",
-      "You're doing it, let's keep pushing",
-      "Let's keep pushing, time to focus, fr",
-      "You're on track, let's make moves",
-      "Let's go",
-      "Lowkey time to move",
-      if (shortTitle != null) "Let's work on $shortTitle",
-      if (progressLabel != null) "You're at $progressLabel, let's keep it up, fr",
-    ]);
+    _addContextualMessages(messages, shortTitle, progressLabel, timeContext, UrgencyLevel.medium, progressState);
+    return _selectRotatingMessage(messages, now);
   }
 
   /// High urgency - behind schedule
+  /// Messages adapt to progress state and time remaining
   static String _getHighUrgencyCTA(
     MascotEmotion emotion,
     double progress,
@@ -453,72 +209,32 @@ class CTAEngine {
     String? progressLabel,
     String? goalTitle,
   ) {
-    final shortTitle = goalTitle != null && goalTitle.length > 15 
-        ? goalTitle.substring(0, 15) + "..." 
-        : goalTitle;
-    
+    final shortTitle = _getShortTitle(goalTitle);
+    final progressState = _getProgressState(progress);
+    final messages = <String>[];
+
     if (emotion == MascotEmotion.worried || emotion == MascotEmotion.sad) {
-      return _randomSelect([
-        "We need to catch up, you got this",
-        "Time to hustle, let's turn it around, fr",
-        "Let's turn it around, no cap we got this",
-        "No cap we got this, comeback time, fr",
-        "Comeback time, rally mode",
-        "Rally mode, we're behind but we got this, no cap",
-        "We're behind but we got this, time to lock in",
-        "Time to lock in, we need to catch up fr, no cap",
-        "We need to catch up fr, time to hustle fr",
-        "Time to hustle fr, let's turn it around fr, no cap",
-        "Let's turn it around fr, we got this",
-        "No cap we got this fr, comeback time fr, no cap",
-        "Comeback time fr, rally mode activated",
-        "Rally mode activated, we're behind but we got this fr, no cap",
-        "We're behind but we got this fr, time to lock in fr",
-        "Time to lock in fr, we need to move, fr",
-        "We need to move, time to get serious",
-        "Time to get serious, let's make a comeback, no cap",
-        "Let's make a comeback, we got this no cap",
-        "We got this no cap, it's comeback time, fr",
-        "It's comeback time, rally mode fr",
-        "Rally mode fr, we're behind but we can do this, no cap",
-        "We're behind but we can do this, time to lock in now",
-        "We need to catch up",
-        "Lowkey rally mode time",
-        if (shortTitle != null) "We need to catch up on $shortTitle",
-        if (progressLabel != null) "You're at $progressLabel, let's catch up, fr",
-      ]);
+      _addProgressMessages(messages, progressState,
+        CTAMessages.highUrgencyWorriedEarly,
+        null,
+        CTAMessages.highUrgencyWorriedNearComplete);
+      
+      messages.addAll(CTAMessages.highUrgencyWorriedGeneral);
+    } else {
+      _addProgressMessages(messages, progressState,
+        CTAMessages.highUrgencyDefaultEarly,
+        null,
+        CTAMessages.highUrgencyDefaultNearComplete);
+      
+      messages.addAll(CTAMessages.highUrgencyDefaultGeneral);
     }
 
-    // High urgency but neutral emotion
-    return _randomSelect([
-      "Pick it up, time to focus",
-      "Time to focus, we're behind, fr",
-      "We're behind, let's catch up",
-      "Let's catch up, crunch time, no cap",
-      "Crunch time, time to move",
-      "Time to move, let's go, fr",
-      "Let's go, pick it up fr",
-      "Pick it up fr, time to focus fr, no cap",
-      "Time to focus fr, we're behind fr",
-      "We're behind fr, let's catch up fr, no cap",
-      "Let's catch up fr, crunch time fr",
-      "Crunch time fr, time to move fr, no cap",
-      "Time to move fr, let's go fr",
-      "Let's go fr, pick it up now, fr",
-      "Pick it up now, time to focus up",
-      "Time to focus up, we're behind let's go, no cap",
-      "We're behind let's go, let's catch up quick",
-      "Let's catch up quick, it's crunch time, fr",
-      "It's crunch time, time to move now",
-      "Time to move now, let's go now, no cap",
-      "Time to pick it up",
-      "Lowkey crunch time",
-      if (shortTitle != null) "We're behind on $shortTitle, let's catch up",
-      if (progressLabel != null) "You're at $progressLabel, we need to catch up, fr",
-    ]);
+    _addContextualMessages(messages, shortTitle, progressLabel, null, UrgencyLevel.high, progressState);
+    return _selectRotatingMessage(messages, now);
   }
 
   /// Critical urgency - overdue or very behind
+  /// Messages adapt to progress state and urgency
   static String _getCriticalUrgencyCTA(
     MascotEmotion emotion,
     double progress,
@@ -527,103 +243,41 @@ class CTAEngine {
     String? progressLabel,
     String? goalTitle,
   ) {
-    final shortTitle = goalTitle != null && goalTitle.length > 15 
-        ? goalTitle.substring(0, 15) + "..." 
-        : goalTitle;
-    
-    // Critical + sad/worried = urgent but supportive
+    final shortTitle = _getShortTitle(goalTitle);
+    final progressState = _getProgressState(progress);
+    final messages = <String>[];
+
     if (emotion == MascotEmotion.sad) {
-      return _randomSelect([
-        "You got this, it's not too late",
-        "Not too late, we can do this, fr",
-        "We can do this, there's still time",
-        "Still time, don't give up, no cap",
-        "Don't give up, comeback time",
-        "Comeback time, let's fix this, fr",
-        "Let's fix this, we got you",
-        "We got you, you got this fr, no cap",
-        "You got this fr, not too late fr",
-        "Not too late fr, we can do this fr, no cap",
-        "We can do this fr, still time fr",
-        "Still time fr, don't give up fr, no cap",
-        "Don't give up fr, comeback time fr",
-        "Comeback time fr, let's fix this fr, no cap",
-        "Let's fix this fr, we got you fr",
-        "We got you fr, you got this no cap, fr",
-        "You got this no cap, it's not too late",
-        "It's not too late, we can still do this, no cap",
-        "We can still do this, there's still time",
-        "There's still time, don't give up now, fr",
-        "Don't give up now, it's comeback time",
-        "It's comeback time, let's fix this together, no cap",
-        "Let's fix this together, we got your back",
-        "We got your back, you got this we believe, fr",
-        "We got you",
-        "Lowkey comeback time",
-        if (shortTitle != null) "We can still fix $shortTitle, you got this",
-        if (progressLabel != null) "You're at $progressLabel, still time to turn it around, fr",
-      ]);
+      _addProgressMessages(messages, progressState,
+        null,
+        null,
+        CTAMessages.criticalUrgencySadNearComplete);
+      
+      messages.addAll(CTAMessages.criticalUrgencySadGeneral);
+    } else if (emotion == MascotEmotion.worried) {
+      _addProgressMessages(messages, progressState,
+        null,
+        null,
+        CTAMessages.criticalUrgencyWorriedNearComplete);
+      
+      messages.addAll(CTAMessages.criticalUrgencyWorriedGeneral);
+    } else {
+      _addProgressMessages(messages, progressState,
+        null,
+        null,
+        CTAMessages.criticalUrgencyDefaultNearComplete);
+      
+      messages.addAll(CTAMessages.criticalUrgencyDefaultGeneral);
     }
 
-    if (emotion == MascotEmotion.worried) {
-      return _randomSelect([
-        "Time to lock in, get serious",
-        "Get serious, no more delays, fr",
-        "No more delays, this is it",
-        "This is it, all or nothing, no cap",
-        "All or nothing, time to show up",
-        "Time to show up, lock in now, fr",
-        "Lock in now, do it now",
-        "Do it now, time to lock in fr, no cap",
-        "Time to lock in fr, get serious fr",
-        "Get serious fr, no more delays fr, no cap",
-        "No more delays fr, this is it fr",
-        "This is it fr, all or nothing fr, no cap",
-        "All or nothing fr, time to show up fr",
-        "Time to show up fr, lock in now fr, no cap",
-        "Lock in now fr, do it now fr",
-        "Do it now fr, time to lock in now, fr",
-        "Time to lock in now, get serious now",
-        "Get serious now, no more delays let's go, no cap",
-        "No more delays let's go, this is it no cap",
-        "This is it no cap, all or nothing now, fr",
-        "All or nothing now, time to show up now",
-        "Time to show up now, lock in immediately, no cap",
-        "Lock in immediately, do it right now",
-        "Time to lock in",
-        "Lowkey this is it",
-        if (shortTitle != null) "Time to lock in on $shortTitle, this is it",
-        if (progressLabel != null) "You're at $progressLabel, time to lock in now, fr",
-      ]);
-    }
+    _addContextualMessages(messages, shortTitle, progressLabel, null, UrgencyLevel.critical, progressState);
+    return _selectRotatingMessage(messages, now);
+  }
 
-    // Critical urgency default
-    return _randomSelect([
-      "This is urgent, do it now",
-      "Do it now, fix this, fr",
-      "Fix this, no time",
-      "No time, emergency, no cap",
-      "Emergency, now or never",
-      "Now or never, time's up, fr",
-      "Time's up, this is urgent fr",
-      "This is urgent fr, do it now fr, no cap",
-      "Do it now fr, fix this fr",
-      "Fix this fr, no time fr, no cap",
-      "No time fr, emergency fr",
-      "Emergency fr, now or never fr, no cap",
-      "Now or never fr, time's up fr",
-      "Time's up fr, this is urgent no cap, fr",
-      "This is urgent no cap, do it right now",
-      "Do it right now, fix this immediately, no cap",
-      "Fix this immediately, no time to waste",
-      "No time to waste, it's an emergency, fr",
-      "It's an emergency, now or never for real",
-      "Now or never for real, time's actually up, no cap",
-      "This is urgent",
-      "Lowkey emergency mode",
-      if (shortTitle != null) "This is urgent for $shortTitle, do it now",
-      if (progressLabel != null) "You're at $progressLabel, this is urgent, fr",
-    ]);
+  /// Helper to get short title for contextual messages
+  static String? _getShortTitle(String? goalTitle) {
+    if (goalTitle == null) return null;
+    return goalTitle.length > 15 ? '${goalTitle.substring(0, 15)}...' : goalTitle;
   }
 
   /// Get time context for personalized messaging
@@ -639,12 +293,277 @@ class CTAEngine {
     }
   }
 
-  /// Randomly select from a list (deterministic based on time)
-  static String _randomSelect(List<String> options) {
+  /// Add progress-specific messages based on progress state
+  static void _addProgressMessages(
+    List<String> messages,
+    ProgressState progressState,
+    List<String>? early,
+    List<String>? mid,
+    List<String>? nearComplete,
+  ) {
+    switch (progressState) {
+      case ProgressState.early:
+        if (early != null) messages.addAll(early);
+        break;
+      case ProgressState.mid:
+        if (mid != null) messages.addAll(mid);
+        break;
+      case ProgressState.nearComplete:
+        if (nearComplete != null) messages.addAll(nearComplete);
+        break;
+    }
+  }
+
+  /// Add time-of-day specific messages
+  static void _addTimeContextMessages(
+    List<String> messages,
+    TimeContext timeContext,
+    List<String>? morning,
+    List<String>? afternoon,
+    List<String>? evening,
+    List<String>? night,
+  ) {
+    switch (timeContext) {
+      case TimeContext.morning:
+        if (morning != null) messages.addAll(morning);
+        break;
+      case TimeContext.afternoon:
+        if (afternoon != null) messages.addAll(afternoon);
+        break;
+      case TimeContext.evening:
+        if (evening != null) messages.addAll(evening);
+        break;
+      case TimeContext.night:
+        if (night != null) messages.addAll(night);
+        break;
+    }
+  }
+
+  /// Add contextual messages with goal title and progress label
+  /// Generates goal-specific messages that naturally reference the goal
+  static void _addContextualMessages(
+    List<String> messages,
+    String? shortTitle,
+    String? progressLabel,
+    [TimeContext? timeContext, UrgencyLevel? urgencyLevel, ProgressState? progressState]
+  ) {
+    if (shortTitle != null) {
+      // Generate goal-specific messages that naturally incorporate the title
+      final goalMessages = _generateGoalSpecificMessages(
+        shortTitle,
+        timeContext,
+        urgencyLevel,
+        progressState,
+      );
+      messages.addAll(goalMessages);
+    }
+
+    if (progressLabel != null) {
+      messages.add("You're at $progressLabel, keep going!");
+      messages.add("You're at $progressLabel, all good, fr!");
+      messages.add("You're at $progressLabel, let's pick it up, fr!");
+      messages.add("You're at $progressLabel, let's keep going, fr!");
+      messages.add("You're at $progressLabel, almost there, fr!");
+      messages.add("You're at $progressLabel, one more push, fr!");
+      messages.add("You're at $progressLabel, let's catch up, fr!");
+      messages.add("You're at $progressLabel, this is urgent, fr!");
+      messages.add("You're at $progressLabel, still time to turn it around, fr!");
+      messages.add("You're at $progressLabel, time to lock in now, fr!");
+      messages.add("You're at $progressLabel, let's keep it up, fr!");
+    }
+  }
+
+  /// Generate goal-specific messages that naturally reference the goal title
+  static List<String> _generateGoalSpecificMessages(
+    String shortTitle,
+    TimeContext? timeContext,
+    UrgencyLevel? urgencyLevel,
+    ProgressState? progressState,
+  ) {
+    final messages = <String>[];
+    
+    // Time-of-day specific goal messages
+    if (timeContext == TimeContext.morning) {
+      messages.addAll([
+        "Let's get $shortTitle done this morning!",
+        "Time to work on $shortTitle!",
+        "Start your day with $shortTitle!",
+        "Let's tackle $shortTitle today!",
+        "Morning grind for $shortTitle!",
+        "As if you'll start $shortTitle later...",
+        "Sure, procrastinate on $shortTitle in the morning...",
+        "Not you being a morning person with $shortTitle...",
+        "I'm sure you'll get to $shortTitle... eventually...",
+        "As if mornings aren't for $shortTitle...",
+      ]);
+    } else if (timeContext == TimeContext.afternoon) {
+      messages.addAll([
+        "Keep working on $shortTitle!",
+        "Let's make progress on $shortTitle!",
+        "Afternoon push for $shortTitle!",
+        "Time to focus on $shortTitle!",
+        "Let's get $shortTitle done!",
+        "As if you'll slow down on $shortTitle...",
+        "Sure, take an afternoon break from $shortTitle...",
+        "Not you losing momentum on $shortTitle...",
+        "I'm sure you'll pick up $shortTitle... eventually...",
+        "As if afternoons aren't productive for $shortTitle...",
+      ]);
+    } else if (timeContext == TimeContext.evening) {
+      messages.addAll([
+        "Let's finish $shortTitle strong!",
+        "Last push for $shortTitle!",
+        "Wrap up $shortTitle today!",
+        "Finish $shortTitle before the day ends!",
+        "Let's complete $shortTitle!",
+        "As if you'll finish $shortTitle tmrw...",
+        "Sure, leave $shortTitle for tmrw...",
+        "Not you ending the day without $shortTitle...",
+        "I'm sure you'll finish $shortTitle... eventually...",
+        "As if evenings aren't for finishing $shortTitle...",
+      ]);
+    } else if (timeContext == TimeContext.night) {
+      messages.addAll([
+        "Let's finish $shortTitle before bed!",
+        "One more push for $shortTitle!",
+        "Late night grind for $shortTitle!",
+        "Let's wrap up $shortTitle!",
+        "Finish $shortTitle tonight!",
+        "As if you'll remember $shortTitle tmrw...",
+        "Sure, do $shortTitle in the morning...",
+        "Not you being a night owl with $shortTitle...",
+        "I'm sure you'll remember $shortTitle... eventually...",
+        "As if sleep is more important than $shortTitle...",
+      ]);
+    }
+
+    // Progress-specific goal messages
+    if (progressState == ProgressState.early) {
+      messages.addAll([
+        "Let's start $shortTitle!",
+        "Time to begin $shortTitle!",
+        "Let's get $shortTitle going!",
+        "Start working on $shortTitle!",
+        "Let's kick off $shortTitle!",
+        "As if you'll start $shortTitle later...",
+        "Sure, delay starting $shortTitle...",
+        "Not you procrastinating on $shortTitle...",
+        "I'm sure you'll begin $shortTitle... eventually...",
+        "As if starting $shortTitle isn't important...",
+      ]);
+    } else if (progressState == ProgressState.nearComplete) {
+      messages.addAll([
+        "Almost done with $shortTitle!",
+        "Finish $shortTitle, you're so close!",
+        "One more push for $shortTitle!",
+        "Let's complete $shortTitle!",
+        "You're almost there with $shortTitle!",
+        "As if you won't finish $shortTitle...",
+        "Sure, stop when you're almost done with $shortTitle...",
+        "Not you being so close to finishing $shortTitle...",
+        "I'm sure you'll complete $shortTitle... eventually...",
+        "As if finishing $shortTitle isn't worth it...",
+      ]);
+    }
+
+    // Urgency-specific goal messages
+    if (urgencyLevel == UrgencyLevel.low) {
+      messages.addAll([
+        "You're ahead on $shortTitle, keep going!",
+        "You're crushing $shortTitle!",
+        "Keep it up with $shortTitle!",
+        "You're doing great with $shortTitle!",
+        "Stay on track with $shortTitle!",
+        "As if you're not crushing $shortTitle...",
+        "Sure, slow down on $shortTitle...",
+        "Not you being too good at $shortTitle...",
+        "I'm sure you'll stop crushing $shortTitle...",
+        "As if consistency with $shortTitle isn't key...",
+      ]);
+    } else if (urgencyLevel == UrgencyLevel.medium) {
+      messages.addAll([
+        "Let's work on $shortTitle!",
+        "Time to focus on $shortTitle!",
+        "Let's make progress on $shortTitle!",
+        "Keep pushing on $shortTitle!",
+        "Stay on $shortTitle!",
+        "As if you don't need to work on $shortTitle...",
+        "Sure, you'll get to $shortTitle later...",
+        "Not you forgetting about $shortTitle...",
+        "I'm sure you'll focus on $shortTitle... eventually...",
+        "As if $shortTitle isn't important...",
+      ]);
+    } else if (urgencyLevel == UrgencyLevel.high) {
+      messages.addAll([
+        "We're behind on $shortTitle, let's catch up!",
+        "Time to hustle on $shortTitle!",
+        "We need to catch up on $shortTitle!",
+        "Let's turn it around with $shortTitle!",
+        "Rally mode for $shortTitle!",
+        "As if you're not behind on $shortTitle...",
+        "Sure, take your time with $shortTitle...",
+        "Not you being late on $shortTitle...",
+        "I'm sure you'll catch up on $shortTitle... eventually...",
+        "As if deadlines for $shortTitle aren't real...",
+      ]);
+    } else if (urgencyLevel == UrgencyLevel.critical) {
+      messages.addAll([
+        "This is urgent for $shortTitle, do it now!",
+        "We can still fix $shortTitle, you got this!",
+        "Time to lock in on $shortTitle, this is it!",
+        "No more delays on $shortTitle!",
+        "Emergency mode for $shortTitle!",
+        "As if $shortTitle isn't urgent...",
+        "Sure, delay $shortTitle more...",
+        "Not you procrastinating on $shortTitle...",
+        "I'm sure you'll fix $shortTitle... eventually...",
+        "As if urgency for $shortTitle isn't real...",
+      ]);
+    }
+
+    // General goal-specific messages
+    messages.addAll([
+      "Let's work on $shortTitle!",
+      "Time to focus on $shortTitle!",
+      "Keep going with $shortTitle!",
+      "Let's make progress on $shortTitle!",
+      "Stay on $shortTitle!",
+      "Don't forget about $shortTitle!",
+      "Let's get $shortTitle done!",
+      "You got this with $shortTitle!",
+      "As if you'll forget about $shortTitle...",
+      "Sure, you'll get to $shortTitle later...",
+      "Not you being too busy for $shortTitle...",
+      "I'm sure you'll work on $shortTitle... eventually...",
+      "As if $shortTitle isn't important...",
+      "Sure, skip $shortTitle today...",
+      "Not you procrastinating on $shortTitle...",
+    ]);
+
+    return messages;
+  }
+
+  /// Select a rotating message from a list (frequent rotation based on time)
+  /// Rotates every 5 minutes for more frequent variety
+  static String _selectRotatingMessage(List<String> options, DateTime now) {
     if (options.isEmpty) return "Let's go";
-    // Use current minute to create variety without randomness
-    final index = DateTime.now().minute % options.length;
+    // Use 5-minute intervals for frequent rotation
+    // Combines hour, minute, and 5-minute block for variety
+    final fiveMinuteBlock = now.minute ~/ 5;
+    final rotationSeed = (now.hour * 12) + fiveMinuteBlock; // 12 blocks per hour
+    final index = rotationSeed % options.length;
     return options[index];
+  }
+
+  /// Get progress state based on completion percentage
+  static ProgressState _getProgressState(double progress) {
+    if (progress < 0.25) {
+      return ProgressState.early;
+    } else if (progress < 0.75) {
+      return ProgressState.mid;
+    } else {
+      return ProgressState.nearComplete;
+    }
   }
 }
 
@@ -654,4 +573,11 @@ enum TimeContext {
   afternoon,
   evening,
   night,
+}
+
+/// Progress state for contextual messaging
+enum ProgressState {
+  early,        // 0-25% complete
+  mid,          // 25-75% complete
+  nearComplete, // 75-100% complete
 }

@@ -13,6 +13,7 @@ class WidgetUpdateEngine {
   final GoalRepository _goalRepository;
   final WidgetSnapshotService _snapshotService;
   bool _isUpdating = false;
+  Future<void>? _pendingUpdate;
 
   WidgetUpdateEngine(this._goalRepository, this._snapshotService) {
     _goalRepository.setChangeListener(_handleGoalChange);
@@ -28,10 +29,28 @@ class WidgetUpdateEngine {
     await _updateSnapshot(isCelebration: isCelebration);
   }
 
-  /// Internal method to update snapshot with debouncing
+  /// Internal method to update snapshot with debouncing and race condition prevention
   Future<void> _updateSnapshot({required bool isCelebration}) async {
-    if (_isUpdating) {
+    // If already updating, wait for current update and skip this one
+    if (_isUpdating && _pendingUpdate != null) {
       AppLogger.debug('Snapshot update already in progress, skipping');
+      try {
+        await _pendingUpdate;
+      } catch (_) {
+        // Ignore errors from pending update
+      }
+      return;
+    }
+
+    // Create update future and store it
+    _pendingUpdate = _performUpdate(isCelebration: isCelebration);
+    await _pendingUpdate;
+    _pendingUpdate = null;
+  }
+
+  /// Perform the actual snapshot update
+  Future<void> _performUpdate({required bool isCelebration}) async {
+    if (_isUpdating) {
       return;
     }
 

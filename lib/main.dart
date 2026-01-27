@@ -147,16 +147,31 @@ class GoalTrackerApp extends StatelessWidget {
 
   Route<dynamic>? _handleDeepLink(RouteSettings settings) {
     // Handle deep links from widgets
-    if (settings.name?.startsWith('catalist://') == true) {
-      try {
-        final uri = Uri.parse(settings.name!);
-        if (uri.host == 'log') {
-          final goalId = uri.queryParameters['goalId'];
-          WidgetActionHandler().processDeepLink(goalId);
-        }
-      } catch (e, stackTrace) {
-        AppLogger.error('Error processing deep link route', e, stackTrace);
+    final routeName = settings.name;
+    if (routeName == null || !routeName.startsWith('catalist://')) {
+      return null;
+    }
+
+    try {
+      // Validate URI before parsing
+      if (routeName.length > 500) {
+        AppLogger.warning('Deep link URI too long, potential attack');
+        return null;
       }
+
+      final uri = Uri.tryParse(routeName);
+      if (uri == null || uri.scheme != 'catalist') {
+        AppLogger.warning('Invalid deep link URI: $routeName');
+        return null;
+      }
+
+      if (uri.host == 'log') {
+        final goalId = uri.queryParameters['goalId'];
+        // Validation happens in processDeepLink
+        WidgetActionHandler().processDeepLink(goalId);
+      }
+    } catch (e, stackTrace) {
+      AppLogger.error('Error processing deep link route', e, stackTrace);
     }
     return null;
   }

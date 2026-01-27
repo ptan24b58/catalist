@@ -5,6 +5,7 @@ import '../utils/logger.dart';
 import '../utils/constants.dart';
 import '../utils/date_utils.dart';
 import '../utils/id_generator.dart';
+import '../utils/validation.dart';
 
 /// Callback type for goal change events
 typedef GoalChangeCallback = Future<void> Function({
@@ -61,15 +62,30 @@ class GoalRepository {
       final prefs = await SharedPreferences.getInstance();
       final goalsJson = prefs.getString(_goalsKey);
 
-      if (goalsJson == null) {
+      if (goalsJson == null || goalsJson.isEmpty) {
         return [];
       }
 
-      final List<dynamic> decoded = jsonDecode(goalsJson) as List<dynamic>;
-      return decoded
+      // Validate JSON size to prevent DoS
+      if (goalsJson.length > 1000000) { // 1MB limit
+        AppLogger.error('Goals JSON too large, potential corruption');
+        return [];
+      }
+
+      final decoded = jsonDecode(goalsJson);
+      if (decoded is! List) {
+        AppLogger.error('Invalid goals format: expected List');
+        return [];
+      }
+
+      return (decoded as List)
           .map((json) {
             try {
-              return Goal.fromJson(json as Map<String, dynamic>);
+              if (json is! Map<String, dynamic>) {
+                AppLogger.warning('Invalid goal format: expected Map');
+                return null;
+              }
+              return Goal.fromJson(json);
             } catch (e, stackTrace) {
               AppLogger.warning('Failed to parse goal from JSON', e);
               AppLogger.debug('Invalid goal JSON: $json', e, stackTrace);
@@ -126,7 +142,9 @@ class GoalRepository {
 
   /// Delete a goal
   Future<void> deleteGoal(String id) async {
-    if (id.isEmpty) throw ArgumentError('Goal ID cannot be empty');
+    if (id.isEmpty || !Validation.isValidGoalId(id)) {
+      throw ArgumentError('Invalid goal ID');
+    }
     try {
       final goals = await getAllGoals();
       goals.removeWhere((g) => g.id == id);
@@ -157,7 +175,9 @@ class GoalRepository {
 
   /// Helper to get and validate goal
   Future<Goal> _getGoalOrThrow(String goalId) async {
-    if (goalId.isEmpty) throw ArgumentError('Goal ID cannot be empty');
+    if (goalId.isEmpty || !Validation.isValidGoalId(goalId)) {
+      throw ArgumentError('Invalid goal ID');
+    }
     final goal = await getGoalById(goalId);
     if (goal == null) throw Exception(AppConstants.errorGoalNotFound);
     return goal;
@@ -184,22 +204,13 @@ class GoalRepository {
     // Add new completion
     todayCompletions.add(completedAt);
 
-    // Update streak logic
-    int newStreak = goal.currentStreak;
-    bool isFirstCompletionToday = lastCompleted != today;
-
-    if (isFirstCompletionToday) {
-      if (lastCompleted == null) {
-        // First completion ever
-        newStreak = 1;
-      } else if (lastCompleted == yesterday) {
-        // Continuing streak
-        newStreak = goal.currentStreak + 1;
-      } else {
-        // Streak broken, start new
-        newStreak = 1;
-      }
-    }
+    // Update streak logic - only if this is the first completion today
+    final newStreak = _calculateNewStreak(
+      goal.currentStreak,
+      lastCompleted,
+      today,
+      yesterday,
+    );
 
     final updatedGoal = goal.copyWith(
       lastCompletedAt: completedAt,
@@ -400,6 +411,32 @@ class GoalRepository {
     await saveGoal(updatedGoal);
     await _notifyProgressLogged(updatedGoal, true);
     return updatedGoal;
+  }
+
+  /// Calculate new streak value based on completion history
+  int _calculateNewStreak(
+    int currentStreak,
+    DateTime? lastCompleted,
+    DateTime today,
+    DateTime yesterday,
+  ) {
+    // If already completed today, don't change streak
+    if (lastCompleted == today) {
+      return currentStreak;
+    }
+
+    // First completion ever
+    if (lastCompleted == null) {
+      return 1;
+    }
+
+    // Continuing streak (completed yesterday)
+    if (DateUtils.normalizeToDay(lastCompleted) == yesterday) {
+      return currentStreak + 1;
+    }
+
+    // Streak broken, start new
+    return 1;
   }
 
   Future<void> _saveAllGoals(List<Goal> goals) async {

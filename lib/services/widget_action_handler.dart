@@ -53,13 +53,35 @@ class WidgetActionHandler {
       final prefs = await SharedPreferences.getInstance();
       final actionJson = prefs.getString('widget_action');
 
-      if (actionJson != null) {
-        final action = jsonDecode(actionJson) as Map<String, dynamic>;
-        await _processAction(action);
-        await prefs.remove('widget_action');
+      if (actionJson == null || actionJson.isEmpty) {
+        return;
       }
+
+      // Validate JSON before parsing
+      if (actionJson.length > 10000) {
+        AppLogger.warning('Action JSON too large, potential attack');
+        await prefs.remove('widget_action');
+        return;
+      }
+
+      final decoded = jsonDecode(actionJson);
+      if (decoded is! Map<String, dynamic>) {
+        AppLogger.warning('Invalid action format: expected Map');
+        await prefs.remove('widget_action');
+        return;
+      }
+
+      await _processAction(decoded);
+      await prefs.remove('widget_action');
     } catch (e, stackTrace) {
       AppLogger.error('Error processing iOS action', e, stackTrace);
+      // Clean up potentially corrupted data
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('widget_action');
+      } catch (_) {
+        // Ignore cleanup errors
+      }
     }
   }
 
@@ -68,14 +90,45 @@ class WidgetActionHandler {
       final appDir = await getApplicationDocumentsDirectory();
       final actionFile = io.File('${appDir.path}/widget_action.json');
 
-      if (await actionFile.exists()) {
-        final content = await actionFile.readAsString();
-        final action = jsonDecode(content) as Map<String, dynamic>;
-        await _processAction(action);
-        await actionFile.delete();
+      if (!await actionFile.exists()) {
+        return;
       }
+
+      // Validate file size to prevent DoS
+      final fileSize = await actionFile.length();
+      if (fileSize > 10000) {
+        AppLogger.warning('Action file too large, potential attack');
+        await actionFile.delete();
+        return;
+      }
+
+      final content = await actionFile.readAsString();
+      if (content.isEmpty) {
+        await actionFile.delete();
+        return;
+      }
+
+      final decoded = jsonDecode(content);
+      if (decoded is! Map<String, dynamic>) {
+        AppLogger.warning('Invalid action format: expected Map');
+        await actionFile.delete();
+        return;
+      }
+
+      await _processAction(decoded);
+      await actionFile.delete();
     } catch (e, stackTrace) {
       AppLogger.error('Error processing Android action', e, stackTrace);
+      // Clean up potentially corrupted file
+      try {
+        final appDir = await getApplicationDocumentsDirectory();
+        final actionFile = io.File('${appDir.path}/widget_action.json');
+        if (await actionFile.exists()) {
+          await actionFile.delete();
+        }
+      } catch (_) {
+        // Ignore cleanup errors
+      }
     }
   }
 
@@ -83,11 +136,19 @@ class WidgetActionHandler {
     final actionType = action['action'] as String?;
     final goalId = action['goalId'] as String?;
 
-    if (actionType == 'log_progress' && goalId != null) {
-      await _logProgress(goalId);
-    } else {
-      AppLogger.warning('Unknown action type or missing goal ID: $action');
+    // Validate action type
+    if (actionType != 'log_progress') {
+      AppLogger.warning('Unknown action type: $actionType');
+      return;
     }
+
+    // Validate goal ID before processing
+    if (goalId == null || !Validation.isValidGoalId(goalId)) {
+      AppLogger.warning('Invalid or missing goal ID in action: $action');
+      return;
+    }
+
+    await _logProgress(goalId);
   }
 
   /// Process action from deep link (e.g., catalist://log?goalId=xxx)
