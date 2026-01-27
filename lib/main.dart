@@ -46,65 +46,71 @@ class GoalTrackerApp extends StatelessWidget {
       useMaterial3: true,
       colorScheme: ColorScheme.light(
         primary: AppColors.catOrange,
-        onPrimary: AppColors.textOnDark,
+        onPrimary: Colors.white,
         secondary: AppColors.catBlue,
-        onSecondary: AppColors.textOnDark,
+        onSecondary: Colors.white,
         tertiary: AppColors.catGold,
-        onTertiary: AppColors.textOnDark,
-        surface: AppColors.catCream,
+        onTertiary: Colors.white,
+        surface: Colors.white,
         onSurface: AppColors.textPrimary,
         surfaceContainerHighest: AppColors.catCream,
         error: AppColors.error,
-        onError: AppColors.textOnDark,
+        onError: Colors.white,
         outline: AppColors.catOrangeLight,
         shadow: AppColors.catOrange.withValues(alpha: 0.2),
       ),
       scaffoldBackgroundColor: AppColors.catCream,
       appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.catOrange,
-        foregroundColor: AppColors.textOnDark,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        iconTheme: IconThemeData(color: AppColors.textOnDark),
+        iconTheme: IconThemeData(color: AppColors.textPrimary),
+        titleTextStyle: TextStyle(
+          color: AppColors.textPrimary,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
       ),
       cardTheme: CardThemeData(
-        color: AppColors.surfaceWhite,
-        elevation: 2,
+        color: Colors.white,
+        elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
         ),
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        margin: EdgeInsets.zero,
       ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: AppColors.catOrange,
-        foregroundColor: AppColors.textOnDark,
+        foregroundColor: Colors.white,
         elevation: 4,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.catOrange,
-          foregroundColor: AppColors.textOnDark,
-          elevation: 2,
+          foregroundColor: Colors.white,
+          elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
           ),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.surfaceWhite,
+        fillColor: Colors.white,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.catOrangeLight),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.catOrangeLight),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: AppColors.catOrange, width: 2),
         ),
+        contentPadding: const EdgeInsets.all(20),
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(
         color: AppColors.catOrange,
@@ -114,31 +120,58 @@ class GoalTrackerApp extends StatelessWidget {
         color: AppColors.catOrange,
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: AppColors.catCream,
-        selectedColor: AppColors.catOrangeLight,
-        checkmarkColor: AppColors.catOrange,
-        labelStyle: const TextStyle(color: AppColors.textPrimary),
+        backgroundColor: Colors.white,
+        selectedColor: AppColors.catOrange,
+        checkmarkColor: Colors.white,
+        labelStyle: const TextStyle(
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.w600,
+        ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),
       ),
       textTheme: const TextTheme(
-        displayLarge: TextStyle(color: AppColors.textPrimary),
-        displayMedium: TextStyle(color: AppColors.textPrimary),
-        displaySmall: TextStyle(color: AppColors.textPrimary),
-        headlineLarge: TextStyle(color: AppColors.textPrimary),
-        headlineMedium: TextStyle(color: AppColors.textPrimary),
-        headlineSmall: TextStyle(color: AppColors.textPrimary),
+        displayLarge: TextStyle(
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.bold,
+        ),
+        displayMedium: TextStyle(
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.bold,
+        ),
+        displaySmall: TextStyle(
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.bold,
+        ),
+        headlineLarge: TextStyle(
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.bold,
+        ),
+        headlineMedium: TextStyle(
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.bold,
+        ),
+        headlineSmall: TextStyle(
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.bold,
+        ),
         titleLarge: TextStyle(
           color: AppColors.textPrimary,
           fontWeight: FontWeight.bold,
         ),
-        titleMedium: TextStyle(color: AppColors.textPrimary),
+        titleMedium: TextStyle(
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.w600,
+        ),
         titleSmall: TextStyle(color: AppColors.textPrimary),
         bodyLarge: TextStyle(color: AppColors.textPrimary),
         bodyMedium: TextStyle(color: AppColors.textPrimary),
         bodySmall: TextStyle(color: AppColors.textSecondary),
-        labelLarge: TextStyle(color: AppColors.textPrimary),
+        labelLarge: TextStyle(
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.w600,
+        ),
         labelMedium: TextStyle(color: AppColors.textPrimary),
         labelSmall: TextStyle(color: AppColors.textSecondary),
       ),
@@ -153,9 +186,15 @@ class GoalTrackerApp extends StatelessWidget {
     }
 
     try {
-      // Validate URI before parsing
+      // Validate URI before parsing - prevent DoS attacks
       if (routeName.length > 500) {
         AppLogger.warning('Deep link URI too long, potential attack');
+        return null;
+      }
+
+      // Additional validation: check for suspicious patterns
+      if (routeName.contains('..') || routeName.contains('//') || routeName.contains('\n') || routeName.contains('\r')) {
+        AppLogger.warning('Deep link contains suspicious characters');
         return null;
       }
 
@@ -165,10 +204,13 @@ class GoalTrackerApp extends StatelessWidget {
         return null;
       }
 
+      // Only allow specific hosts for security
       if (uri.host == 'log') {
         final goalId = uri.queryParameters['goalId'];
         // Validation happens in processDeepLink
         WidgetActionHandler().processDeepLink(goalId);
+      } else {
+        AppLogger.warning('Unknown deep link host: ${uri.host}');
       }
     } catch (e, stackTrace) {
       AppLogger.error('Error processing deep link route', e, stackTrace);

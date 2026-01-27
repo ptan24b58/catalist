@@ -78,7 +78,7 @@ class GoalRepository {
         return [];
       }
 
-      return (decoded as List)
+      return decoded
           .map((json) {
             try {
               if (json is! Map<String, dynamic>) {
@@ -330,9 +330,20 @@ class GoalRepository {
       throw Exception('Goal is not a milestone progress type');
     }
 
+    // Validate and sanitize milestone title
+    final sanitized = Validation.sanitizeMilestoneTitle(milestoneTitle);
+    if (sanitized == null) {
+      throw ArgumentError('Invalid milestone title');
+    }
+    
+    // Check milestone limit
+    if (goal.milestones.length >= AppConstants.maxMilestones) {
+      throw Exception('Maximum ${AppConstants.maxMilestones} milestones allowed');
+    }
+
     final newMilestone = Milestone(
       id: IdGenerator.generate(),
-      title: milestoneTitle,
+      title: sanitized,
     );
 
     final updatedMilestones = List<Milestone>.from(goal.milestones)

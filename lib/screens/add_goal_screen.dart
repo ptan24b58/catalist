@@ -6,6 +6,7 @@ import '../utils/id_generator.dart';
 import '../utils/logger.dart';
 import '../utils/snackbar_helper.dart';
 import '../utils/validation.dart';
+import '../utils/app_colors.dart';
 
 class AddGoalScreen extends StatefulWidget {
   const AddGoalScreen({super.key});
@@ -15,15 +16,15 @@ class AddGoalScreen extends StatefulWidget {
 }
 
 class _AddGoalScreenState extends State<AddGoalScreen> {
-  final _formKey = GlobalKey<FormState>();
+  int _currentStep = 0;
   final _titleController = TextEditingController();
   final _targetController = TextEditingController();
   final _unitController = TextEditingController();
   final _milestoneController = TextEditingController();
   final List<String> _milestoneInputs = [];
 
-  GoalType _goalType = GoalType.daily;
-  ProgressType _progressType = ProgressType.completion;
+  GoalType? _goalType;
+  ProgressType? _progressType;
   DateTime? _deadline;
   int _dailyTarget = 1;
 
@@ -40,16 +41,44 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
     if (_goalType == GoalType.daily) {
       return [ProgressType.completion, ProgressType.numeric];
     }
-    return [ProgressType.percentage, ProgressType.milestones, ProgressType.numeric];
+    if (_goalType == GoalType.longTerm) {
+      return [ProgressType.percentage, ProgressType.milestones, ProgressType.numeric];
+    }
+    return [];
   }
 
-  void _onGoalTypeChanged(GoalType? type) {
-    if (type == null) return;
+  void _nextStep() {
+    if (_currentStep == 0 && _titleController.text.trim().isEmpty) {
+      SnackBarHelper.showError(context, 'Please enter a goal name');
+      return;
+    }
+    if (_currentStep == 1 && _goalType == null) {
+      SnackBarHelper.showError(context, 'Please choose a goal type');
+      return;
+    }
+    if (_currentStep == 2 && _progressType == null) {
+      SnackBarHelper.showError(context, 'Please choose how to track progress');
+      return;
+    }
+    
     setState(() {
-      _goalType = type;
-      // Reset progress type to first available option
-      _progressType = _availableProgressTypes.first;
+      if (_currentStep < 3) {
+        _currentStep++;
+        // Auto-select first progress type when goal type changes
+        if (_currentStep == 2 && 
+            _goalType != null && 
+            _progressType == null && 
+            _availableProgressTypes.isNotEmpty) {
+          _progressType = _availableProgressTypes.first;
+        }
+      }
     });
+  }
+
+  void _previousStep() {
+    if (_currentStep > 0) {
+      setState(() => _currentStep--);
+    }
   }
 
   Future<void> _selectDeadline() async {
@@ -67,12 +96,24 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
 
   void _addMilestone() {
     final text = _milestoneController.text.trim();
-    if (text.isNotEmpty && _milestoneInputs.length < AppConstants.maxMilestones) {
-      setState(() {
-        _milestoneInputs.add(text);
-        _milestoneController.clear();
-      });
+    if (text.isEmpty) return;
+    
+    // Validate and sanitize milestone title
+    final sanitized = Validation.sanitizeMilestoneTitle(text);
+    if (sanitized == null) {
+      SnackBarHelper.showError(context, 'Please enter a valid milestone title');
+      return;
     }
+    
+    if (_milestoneInputs.length >= AppConstants.maxMilestones) {
+      SnackBarHelper.showError(context, 'Maximum ${AppConstants.maxMilestones} milestones allowed');
+      return;
+    }
+    
+    setState(() {
+      _milestoneInputs.add(sanitized);
+      _milestoneController.clear();
+    });
   }
 
   void _removeMilestone(int index) {
@@ -82,17 +123,17 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
   }
 
   Future<void> _saveGoal() async {
-    if (!_formKey.currentState!.validate()) {
+    if (_titleController.text.trim().isEmpty) {
+      SnackBarHelper.showError(context, 'Please enter a goal name');
       return;
     }
 
-    // Additional validation for specific progress types
     if (_progressType == ProgressType.milestones && _milestoneInputs.isEmpty) {
       SnackBarHelper.showError(context, AppConstants.validationAddMilestone);
       return;
     }
 
-    if (_progressType == ProgressType.numeric) {
+    if (_progressType == ProgressType.numeric && _goalType == GoalType.longTerm) {
       final target = double.tryParse(_targetController.text);
       if (target == null || target <= 0) {
         SnackBarHelper.showError(context, AppConstants.validationValidTarget);
@@ -103,28 +144,33 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
     try {
       final sanitizedTitle = Validation.sanitizeTitle(_titleController.text);
 
-      // Build milestones list
       final milestones = _milestoneInputs
-          .map((title) => Milestone(
-                id: IdGenerator.generate(),
-                title: title,
-              ))
+          .map((title) {
+            final sanitized = Validation.sanitizeMilestoneTitle(title);
+            return sanitized != null
+                ? Milestone(
+                    id: IdGenerator.generate(),
+                    title: sanitized,
+                  )
+                : null;
+          })
+          .whereType<Milestone>()
           .toList();
 
-      // Parse numeric target
       double? targetValue;
       if (_progressType == ProgressType.numeric) {
-        targetValue = double.tryParse(_targetController.text);
         if (_goalType == GoalType.daily) {
           targetValue = _dailyTarget.toDouble();
+        } else {
+          targetValue = double.tryParse(_targetController.text);
         }
       }
 
       final goal = Goal(
         id: IdGenerator.generate(),
         title: sanitizedTitle,
-        goalType: _goalType,
-        progressType: _progressType,
+        goalType: _goalType!,
+        progressType: _progressType!,
         targetValue: targetValue,
         unit: _unitController.text.trim().isEmpty
             ? null
@@ -135,7 +181,6 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
       );
 
       await goalRepository.saveGoal(goal);
-      // Snapshot automatically updated by WidgetUpdateEngine
 
       if (mounted) {
         Navigator.pop(context);
@@ -154,398 +199,806 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.catCream,
       appBar: AppBar(
-        title: const Text('New Goal'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: AppColors.textPrimary),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
+      body: SafeArea(
+        child: Column(
           children: [
-            // Title
-            TextFormField(
-              controller: _titleController,
-              decoration: const InputDecoration(
-                labelText: 'Goal Title',
-                hintText: 'e.g., Learn Spanish, Save for vacation',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.flag),
-              ),
-              validator: Validation.validateTitle,
-              autofocus: true,
-            ),
-            const SizedBox(height: 24),
-
-            // Goal Type Selection
-            _buildSectionTitle('Goal Type'),
-            const SizedBox(height: 8),
-            _buildGoalTypeSelector(),
-            const SizedBox(height: 24),
-
-            // Progress Type Selection
-            _buildSectionTitle('How to Track Progress'),
-            const SizedBox(height: 8),
-            _buildProgressTypeSelector(),
-            const SizedBox(height: 24),
-
-            // Conditional Fields based on progress type
-            ..._buildConditionalFields(),
-
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: _saveGoal,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                foregroundColor: Theme.of(context).colorScheme.onPrimary,
-              ),
-              child: const Text(
-                'Create Goal',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            // Progress indicator
+            _buildProgressIndicator(),
+            
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: _buildCurrentStep(),
               ),
             ),
+            
+            // Navigation buttons
+            _buildNavigationButtons(),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.bold,
+  Widget _buildProgressIndicator() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      child: Row(
+        children: List.generate(4, (index) {
+          final isActive = index <= _currentStep;
+          return Expanded(
+            child: Container(
+              margin: EdgeInsets.only(right: index < 3 ? 8 : 0),
+              height: 4,
+              decoration: BoxDecoration(
+                color: isActive ? AppColors.catOrange : AppColors.catOrangeLight,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          );
+        }),
       ),
     );
   }
 
-  Widget _buildGoalTypeSelector() {
-    return Row(
+  Widget _buildCurrentStep() {
+    switch (_currentStep) {
+      case 0:
+        return _buildStep1Title();
+      case 1:
+        return _buildStep2GoalType();
+      case 2:
+        return _buildStep3ProgressType();
+      case 3:
+        return _buildStep4Details();
+      default:
+        return const SizedBox();
+    }
+  }
+
+  Widget _buildStep1Title() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: _buildTypeCard(
-            title: 'Daily',
-            subtitle: 'Recurring every day',
-            icon: Icons.repeat,
-            isSelected: _goalType == GoalType.daily,
-            onTap: () => _onGoalTypeChanged(GoalType.daily),
+        const Text(
+          'What do you want to achieve?',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
           ),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildTypeCard(
-            title: 'Long-term',
-            subtitle: 'One-time achievement',
-            icon: Icons.flag,
-            isSelected: _goalType == GoalType.longTerm,
-            onTap: () => _onGoalTypeChanged(GoalType.longTerm),
+        const SizedBox(height: 8),
+        const Text(
+          'Give your goal a name',
+          style: TextStyle(
+            fontSize: 14,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 24),
+        TextField(
+          controller: _titleController,
+          autofocus: true,
+          style: const TextStyle(fontSize: 16),
+          decoration: InputDecoration(
+            hintText: r'e.g., Learn Spanish, Run 5K, Save $5000',
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppColors.catOrangeLight),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppColors.catOrangeLight),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppColors.catOrange, width: 2),
+            ),
+            contentPadding: const EdgeInsets.all(16),
+          ),
+          onSubmitted: (_) => _nextStep(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStep2GoalType() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'How often?',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Choose how you want to track this goal',
+          style: TextStyle(
+            fontSize: 14,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 24),
+        _buildGoalTypeCard(
+          title: 'Daily',
+          subtitle: 'Do it every day',
+          icon: Icons.today,
+          color: AppColors.catOrange,
+          isSelected: _goalType == GoalType.daily,
+          onTap: () => setState(() {
+            _goalType = GoalType.daily;
+            _progressType = null;
+          }),
+        ),
+        const SizedBox(height: 12),
+        _buildGoalTypeCard(
+          title: 'Long-term',
+          subtitle: 'One big achievement',
+          icon: Icons.flag,
+          color: AppColors.catBlue,
+          isSelected: _goalType == GoalType.longTerm,
+          onTap: () => setState(() {
+            _goalType = GoalType.longTerm;
+            _progressType = null;
+          }),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGoalTypeCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withValues(alpha: 0.1) : Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? color : AppColors.catOrangeLight,
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: 24,
+              color: isSelected ? color : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (isSelected)
+              Icon(Icons.check_circle, color: color, size: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStep3ProgressType() {
+    if (_availableProgressTypes.isEmpty) {
+      return const Center(
+        child: Text('Please select a goal type first'),
+      );
+    }
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'How to track?',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Choose how you\'ll measure your progress',
+          style: TextStyle(
+            fontSize: 14,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 24),
+        ..._availableProgressTypes.map((type) {
+          final isSelected = _progressType == type;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _buildProgressTypeCard(type, isSelected),
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _buildProgressTypeCard(ProgressType type, bool isSelected) {
+    final config = _getProgressTypeConfig(type);
+    return InkWell(
+      onTap: () => setState(() => _progressType = type),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isSelected ? config['color'].withOpacity(0.1) : Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? config['color'] : AppColors.catOrangeLight,
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              config['icon'],
+              size: 24,
+              color: isSelected ? config['color'] : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    config['title'],
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    config['subtitle'],
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (isSelected)
+              Icon(Icons.check_circle, color: config['color'], size: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Map<String, dynamic> _getProgressTypeConfig(ProgressType type) {
+    return switch (type) {
+      ProgressType.completion => {
+          'icon': Icons.check_circle_outline,
+          'title': 'Simple Check',
+          'subtitle': 'Just mark it done',
+          'color': AppColors.emotionHappy,
+        },
+      ProgressType.percentage => {
+          'icon': Icons.pie_chart_outline,
+          'title': 'Percentage',
+          'subtitle': 'Track 0-100% progress',
+          'color': AppColors.catBlue,
+        },
+      ProgressType.milestones => {
+          'icon': Icons.checklist,
+          'title': 'Milestones',
+          'subtitle': 'Complete step by step',
+          'color': AppColors.catGold,
+        },
+      ProgressType.numeric => {
+          'icon': Icons.trending_up,
+          'title': 'Numbers',
+          'subtitle': 'Track specific amounts',
+          'color': AppColors.catOrange,
+        },
+    };
+  }
+
+  Widget _buildStep4Details() {
+    if (_progressType == ProgressType.milestones) {
+      return _buildMilestonesStep();
+    }
+    if (_progressType == ProgressType.numeric) {
+      return _buildNumericStep();
+    }
+    if (_goalType == GoalType.longTerm && _progressType != ProgressType.milestones) {
+      return _buildDeadlineStep();
+    }
+    return _buildReviewStep();
+  }
+
+  Widget _buildMilestonesStep() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Add milestones',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Break your goal into smaller steps',
+          style: TextStyle(
+            fontSize: 14,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 20),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _milestoneController,
+                decoration: InputDecoration(
+                  hintText: 'e.g., Complete chapter 1',
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppColors.catOrangeLight),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppColors.catOrangeLight),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppColors.catOrange, width: 2),
+                  ),
+                  contentPadding: const EdgeInsets.all(16),
+                ),
+                onSubmitted: (_) => _addMilestone(),
+              ),
+            ),
+            const SizedBox(width: 12),
+            IconButton(
+              onPressed: _addMilestone,
+              icon: const Icon(Icons.add),
+              style: IconButton.styleFrom(
+                backgroundColor: AppColors.catOrange,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.all(12),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        if (_milestoneInputs.isNotEmpty) ...[
+          ..._milestoneInputs.asMap().entries.map((entry) {
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: AppColors.catOrangeLight,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${entry.key + 1}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.catOrange,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text(entry.value)),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20),
+                    onPressed: () => _removeMilestone(entry.key),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildNumericStep() {
+    if (_goalType == GoalType.daily) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+        const Text(
+          'Daily target',
+          style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'How many do you want to do each day?',
+            style: TextStyle(
+              fontSize: 14,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.catOrangeLight),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  '$_dailyTarget',
+                  style: const TextStyle(
+                    fontSize: 48,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.catOrange,
+                  ),
+                ),
+                Slider(
+                  value: _dailyTarget.toDouble(),
+                  min: 1,
+                  max: AppConstants.defaultMaxTarget.toDouble(),
+                  divisions: AppConstants.defaultMaxTarget - 1,
+                  onChanged: (value) {
+                    setState(() => _dailyTarget = value.toInt());
+                  },
+                  activeColor: AppColors.catOrange,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _unitController,
+            decoration: InputDecoration(
+              hintText: 'Unit (optional): e.g., glasses, reps, pages',
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppColors.catOrangeLight),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppColors.catOrangeLight),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppColors.catOrange, width: 2),
+              ),
+              contentPadding: const EdgeInsets.all(16),
+            ),
+          ),
+        ],
+      );
+    } else {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Set your target',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'What\'s your goal number?',
+            style: TextStyle(
+              fontSize: 14,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: TextField(
+                  controller: _targetController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  style: const TextStyle(fontSize: 16),
+                  decoration: InputDecoration(
+                    hintText: '5000',
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: AppColors.catOrangeLight),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: AppColors.catOrangeLight),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: AppColors.catOrange, width: 2),
+                    ),
+                    contentPadding: const EdgeInsets.all(16),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  controller: _unitController,
+                  decoration: InputDecoration(
+                    hintText: 'Unit',
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: AppColors.catOrangeLight),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: AppColors.catOrangeLight),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: AppColors.catOrange, width: 2),
+                    ),
+                    contentPadding: const EdgeInsets.all(16),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+  }
+
+  Widget _buildDeadlineStep() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'When\'s your deadline?',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Set a deadline to stay motivated (optional)',
+          style: TextStyle(
+            fontSize: 14,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 24),
+        OutlinedButton.icon(
+          onPressed: _selectDeadline,
+          icon: const Icon(Icons.calendar_today, size: 20),
+          label: Text(
+            _deadline == null
+                ? 'Pick a date'
+                : '${_deadline!.month}/${_deadline!.day}/${_deadline!.year}',
+            style: const TextStyle(fontSize: 16),
+          ),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.catOrange,
+            side: const BorderSide(color: AppColors.catOrange),
+            padding: const EdgeInsets.all(16),
+            minimumSize: const Size(double.infinity, 48),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+        if (_deadline != null) ...[
+          const SizedBox(height: 12),
+          TextButton(
+            onPressed: () => setState(() => _deadline = null),
+            child: const Text('Remove deadline'),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildReviewStep() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Ready to go',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Review your goal and let\'s start',
+          style: TextStyle(
+            fontSize: 14,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 24),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.catOrangeLight),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _titleController.text,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildReviewItem('Type', _goalType == GoalType.daily ? 'Daily' : 'Long-term'),
+              _buildReviewItem('Tracking', _getProgressTypeConfig(_progressType!)['title']),
+            ],
           ),
         ),
       ],
     );
   }
 
-  Widget _buildTypeCard({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected
-                ? Theme.of(context).colorScheme.primary
-                : Theme.of(context).colorScheme.outline,
-            width: isSelected ? 2 : 1,
+  Widget _buildReviewItem(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 16,
+            ),
           ),
-          color: isSelected
-              ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3)
-              : null,
-        ),
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              size: 32,
-              color: isSelected
-                  ? Theme.of(context).colorScheme.primary
-                  : Theme.of(context).colorScheme.onSurfaceVariant,
+          Text(
+            value,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
             ),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: isSelected
-                    ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context).colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildProgressTypeSelector() {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: _availableProgressTypes.map((type) {
-        final isSelected = _progressType == type;
-        return ChoiceChip(
-          label: Text(_getProgressTypeLabel(type)),
-          selected: isSelected,
-          onSelected: (selected) {
-            if (selected) {
-              setState(() => _progressType = type);
-            }
-          },
-          avatar: Icon(
-            _getProgressTypeIcon(type),
-            size: 18,
-            color: isSelected
-                ? Theme.of(context).colorScheme.onPrimaryContainer
-                : Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  String _getProgressTypeLabel(ProgressType type) {
-    return switch (type) {
-      ProgressType.completion => 'Simple Check',
-      ProgressType.percentage => 'Percentage',
-      ProgressType.milestones => 'Milestones',
-      ProgressType.numeric => 'Numeric Target',
-    };
-  }
-
-  IconData _getProgressTypeIcon(ProgressType type) {
-    return switch (type) {
-      ProgressType.completion => Icons.check_circle_outline,
-      ProgressType.percentage => Icons.pie_chart_outline,
-      ProgressType.milestones => Icons.checklist,
-      ProgressType.numeric => Icons.trending_up,
-    };
-  }
-
-  List<Widget> _buildConditionalFields() {
-    final widgets = <Widget>[];
-
-    // Deadline for long-term goals
-    if (_goalType == GoalType.longTerm) {
-      widgets.addAll([
-        _buildSectionTitle('Deadline (Optional)'),
-        const SizedBox(height: 8),
-        OutlinedButton.icon(
-          onPressed: _selectDeadline,
-          icon: const Icon(Icons.calendar_today),
-          label: Text(
-            _deadline == null
-                ? 'Set Deadline'
-                : '${_deadline!.month}/${_deadline!.day}/${_deadline!.year}',
-          ),
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-            alignment: Alignment.centerLeft,
-          ),
-        ),
-        if (_deadline != null) ...[
-          const SizedBox(height: 8),
-          TextButton(
-            onPressed: () => setState(() => _deadline = null),
-            child: const Text('Remove deadline'),
+  Widget _buildNavigationButtons() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
           ),
         ],
-        const SizedBox(height: 24),
-      ]);
-    }
-
-    // Numeric target fields
-    if (_progressType == ProgressType.numeric) {
-      if (_goalType == GoalType.daily) {
-        widgets.addAll([
-          _buildSectionTitle('Daily Target'),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: Slider(
-                  value: _dailyTarget.toDouble(),
-                  min: 1,
-                  max: AppConstants.defaultMaxTarget.toDouble(),
-                  divisions: AppConstants.defaultMaxTarget - 1,
-                  label: _dailyTarget.toString(),
-                  onChanged: (value) {
-                    setState(() => _dailyTarget = value.toInt());
-                  },
+      ),
+      child: Row(
+        children: [
+          if (_currentStep > 0)
+            Expanded(
+              child: OutlinedButton(
+                onPressed: _previousStep,
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  side: const BorderSide(color: AppColors.catOrange, width: 2),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-              ),
-              SizedBox(
-                width: 48,
-                child: Text(
-                  '$_dailyTarget',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
+                child: const Text(
+                  'Back',
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
+                    color: AppColors.catOrange,
                   ),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _unitController,
-            decoration: const InputDecoration(
-              labelText: 'Unit (Optional)',
-              hintText: 'e.g., glasses, reps, pages',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.straighten),
             ),
-          ),
-          const SizedBox(height: 24),
-        ]);
-      } else {
-        widgets.addAll([
-          _buildSectionTitle('Target Value'),
-          const SizedBox(height: 8),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                flex: 2,
-                child: TextFormField(
-                  controller: _targetController,
-                  decoration: const InputDecoration(
-                    labelText: 'Target',
-                    hintText: 'e.g., 5000',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.numbers),
-                  ),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Required';
-                    }
-                    if (double.tryParse(value) == null) {
-                      return 'Enter a number';
-                    }
-                    return null;
-                  },
+          if (_currentStep > 0) const SizedBox(width: 12),
+          Expanded(
+            flex: _currentStep == 0 ? 1 : 2,
+            child: ElevatedButton(
+              onPressed: _currentStep == 3 ? _saveGoal : _nextStep,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.catOrange,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextFormField(
-                  controller: _unitController,
-                  decoration: const InputDecoration(
-                    labelText: 'Unit',
-                    hintText: '\$, kg, km',
-                    border: OutlineInputBorder(),
-                  ),
+              child: Text(
+                _currentStep == 3 ? 'Create Goal' : 'Continue',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-        ]);
-      }
-    }
-
-    // Milestones
-    if (_progressType == ProgressType.milestones) {
-      widgets.addAll([
-        _buildSectionTitle('Milestones'),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: TextFormField(
-                controller: _milestoneController,
-                decoration: const InputDecoration(
-                  labelText: 'Add Milestone',
-                  hintText: 'e.g., Complete chapter 1',
-                  border: OutlineInputBorder(),
-                ),
-                onFieldSubmitted: (_) => _addMilestone(),
-              ),
-            ),
-            const SizedBox(width: 8),
-            IconButton.filled(
-              onPressed: _addMilestone,
-              icon: const Icon(Icons.add),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        if (_milestoneInputs.isNotEmpty) ...[
-          ReorderableListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _milestoneInputs.length,
-            itemBuilder: (context, index) {
-              return ListTile(
-                key: ValueKey('milestone_$index'),
-                leading: CircleAvatar(
-                  radius: 14,
-                  child: Text(
-                    '${index + 1}',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ),
-                title: Text(_milestoneInputs[index]),
-                trailing: IconButton(
-                  icon: const Icon(Icons.close, size: 20),
-                  onPressed: () => _removeMilestone(index),
-                ),
-              );
-            },
-            onReorder: (oldIndex, newIndex) {
-              setState(() {
-                if (newIndex > oldIndex) newIndex--;
-                final item = _milestoneInputs.removeAt(oldIndex);
-                _milestoneInputs.insert(newIndex, item);
-              });
-            },
-          ),
-        ] else
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            ),
-            child: Text(
-              'No milestones added yet',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ),
-        const SizedBox(height: 24),
-      ]);
-    }
-
-    return widgets;
+        ],
+      ),
+    );
   }
 }

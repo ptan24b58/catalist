@@ -34,6 +34,23 @@ class Validation {
         id.length <= AppConstants.maxIdLength;
   }
 
-  /// Sanitize goal title
-  static String sanitizeTitle(String title) => title.trim();
+  /// Sanitize goal title - remove leading/trailing whitespace and limit length
+  static String sanitizeTitle(String title) {
+    final trimmed = title.trim();
+    // Enforce max length to prevent storage issues
+    if (trimmed.length > AppConstants.maxTitleLength) {
+      return trimmed.substring(0, AppConstants.maxTitleLength);
+    }
+    return trimmed;
+  }
+  
+  /// Validate and sanitize milestone title
+  static String? sanitizeMilestoneTitle(String title) {
+    final trimmed = title.trim();
+    if (trimmed.isEmpty) return null;
+    if (trimmed.length > AppConstants.maxTitleLength) {
+      return trimmed.substring(0, AppConstants.maxTitleLength);
+    }
+    return trimmed;
+  }
 }

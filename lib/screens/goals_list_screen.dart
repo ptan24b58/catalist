@@ -5,6 +5,7 @@ import '../utils/constants.dart';
 import '../utils/logger.dart';
 import '../utils/progress_formatter.dart';
 import '../utils/snackbar_helper.dart';
+import '../utils/gamification.dart';
 import 'add_goal_screen.dart';
 import 'goal_detail_screen.dart';
 
@@ -142,26 +143,42 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final totalXP = Gamification.calculateTotalXP(_goals);
+    final level = Gamification.calculateLevel(totalXP);
+    final levelProgress = Gamification.getLevelProgress(totalXP);
+    final xpInLevel = Gamification.xpInCurrentLevel(totalXP);
+    const xpNeeded = Gamification.xpPerLevel;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Goals'),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
-          child: _buildFilterTabs(),
-        ),
+        elevation: 0,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _filteredGoals.isEmpty
-              ? _buildEmptyState()
-              : ListView.builder(
-                  itemCount: _filteredGoals.length,
-                  padding: const EdgeInsets.only(top: 8, bottom: 80),
-                  itemBuilder: (context, index) {
-                    final goal = _filteredGoals[index];
-                    return _buildGoalCard(goal);
-                  },
+          : Column(
+              children: [
+                _buildExperienceBanner(
+                  level: level,
+                  totalXP: totalXP,
+                  levelProgress: levelProgress,
+                  xpInLevel: xpInLevel,
+                  xpNeeded: xpNeeded,
                 ),
+                _buildFilterButtons(),
+                Expanded(
+                  child: _filteredGoals.isEmpty
+                      ? _buildEmptyState()
+                      : ListView.builder(
+                          itemCount: _filteredGoals.length,
+                          padding: const EdgeInsets.only(top: 8, bottom: 80),
+                          itemBuilder: (context, index) {
+                            final goal = _filteredGoals[index];
+                            return _buildGoalCard(goal);
+                          },
+                        ),
+                ),
+              ],
+            ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           await Navigator.push(
@@ -177,31 +194,304 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
     );
   }
 
-  Widget _buildFilterTabs() {
+  Widget _buildExperienceBanner({
+    required int level,
+    required int totalXP,
+    required double levelProgress,
+    required int xpInLevel,
+    required int xpNeeded,
+  }) {
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    final goldColor = Theme.of(context).colorScheme.tertiary;
+    
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
+      margin: const EdgeInsets.all(16),
+      decoration: _buildBannerDecoration(primaryColor, goldColor),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: _buildLevelInfo(level, xpInLevel, xpNeeded, primaryColor)),
+                const SizedBox(width: 16),
+                _buildTotalXPBadge(totalXP, primaryColor),
+              ],
+            ),
+            const SizedBox(height: 24),
+            _buildProgressBar(levelProgress, primaryColor, goldColor),
+          ],
+        ),
+      ),
+    );
+  }
+
+  BoxDecoration _buildBannerDecoration(Color primaryColor, Color goldColor) {
+    return BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          primaryColor.withValues(alpha: 0.3),
+          primaryColor.withValues(alpha: 0.2),
+          goldColor.withValues(alpha: 0.2),
+          goldColor.withValues(alpha: 0.1),
+        ],
+        stops: const [0.0, 0.4, 0.6, 1.0],
+      ),
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(
+        color: primaryColor.withValues(alpha: 0.25),
+        width: 1.5,
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: primaryColor.withValues(alpha: 0.2),
+          blurRadius: 16,
+          offset: const Offset(0, 4),
+          spreadRadius: 0,
+        ),
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.05),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLevelInfo(int level, int xpInLevel, int xpNeeded, Color primaryColor) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [primaryColor, primaryColor.withValues(alpha: 0.85)],
+            ),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: primaryColor.withValues(alpha: 0.35),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Text(
+            'LEVEL $level',
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              letterSpacing: 1.2,
+              height: 1.2,
+            ),
+          ),
+        ),
+        const SizedBox(height: 18),
+        Text(
+          'Experience',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+            letterSpacing: 0.8,
+            height: 1.0,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text(
+              '$xpInLevel',
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: primaryColor,
+                height: 1.0,
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Text(
+                '/ $xpNeeded XP',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.65),
+                  height: 1.0,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTotalXPBadge(int totalXP, Color primaryColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: primaryColor.withValues(alpha: 0.25),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: primaryColor.withValues(alpha: 0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          _buildFilterChip('All', GoalFilter.all),
-          const SizedBox(width: 8),
-          _buildFilterChip('Daily', GoalFilter.daily),
-          const SizedBox(width: 8),
-          _buildFilterChip('Long-term', GoalFilter.longTerm),
+          Text(
+            'Total',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
+              letterSpacing: 0.8,
+              height: 1.0,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '$totalXP',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: primaryColor,
+              height: 1.0,
+              letterSpacing: -0.5,
+            ),
+          ),
+          Text(
+            'XP',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+              height: 1.0,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildFilterChip(String label, GoalFilter filter) {
+  Widget _buildProgressBar(double levelProgress, Color primaryColor, Color goldColor) {
+    return Stack(
+      children: [
+        Container(
+          height: 12,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(6),
+          ),
+        ),
+        FractionallySizedBox(
+          widthFactor: levelProgress,
+          child: Container(
+            height: 12,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: [primaryColor, goldColor]),
+              borderRadius: BorderRadius.circular(6),
+              boxShadow: [
+                BoxShadow(
+                  color: primaryColor.withValues(alpha: 0.5),
+                  blurRadius: 10,
+                  offset: const Offset(0, 0),
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilterButtons() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildFilterButton('All', GoalFilter.all),
+          ),
+          Expanded(
+            child: _buildFilterButton('Daily', GoalFilter.daily),
+          ),
+          Expanded(
+            child: _buildFilterButton('Long-term', GoalFilter.longTerm),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterButton(String label, GoalFilter filter) {
     final isSelected = _filter == filter;
-    return FilterChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (selected) {
-        setState(() => _filter = filter);
-      },
-      selectedColor: Theme.of(context).colorScheme.primaryContainer,
-      checkmarkColor: Theme.of(context).colorScheme.primary,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          setState(() => _filter = filter);
+        },
+        splashColor: Colors.transparent,
+        highlightColor: Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? Colors.white
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              color: isSelected
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -213,30 +503,33 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
     };
 
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.flag_outlined,
-            size: 64,
-            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            message,
-            style: TextStyle(
-              fontSize: 18,
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+      child: Padding(
+        padding: const EdgeInsets.only(top: 60),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.flag_outlined,
+              size: 64,
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Tap + to create your first goal',
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+            const SizedBox(height: 16),
+            Text(
+              message,
+              style: TextStyle(
+                fontSize: 18,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            Text(
+              'Tap + to create your first goal',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -282,6 +575,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
+
                             ),
                             _buildGoalTypeBadge(goal),
                           ],
