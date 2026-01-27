@@ -7,6 +7,7 @@ import '../utils/app_colors.dart';
 import '../widgets/gamification/streak_badge.dart';
 import '../widgets/gamification/crown_icon.dart';
 import '../widgets/gamification/xp_burst.dart';
+import '../widgets/celebration_overlay.dart';
 
 class GoalDetailScreen extends StatefulWidget {
   final Goal goal;
@@ -65,9 +66,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
       _xpOverlayKey.currentState?.showXPBurst(Gamification.xpPerDailyCompletion);
       await _loadGoal();
 
-      if (mounted) {
-        _showCelebration();
-      }
+      if (mounted) showCelebrationOverlay(context);
     } catch (e, stackTrace) {
       AppLogger.error('Failed to log progress', e, stackTrace);
     }
@@ -88,10 +87,8 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
 
       await _loadGoal();
 
-      if (mounted) {
-        if (_percentageSliderValue >= 100) {
-          _showCelebration();
-        }
+      if (mounted && _percentageSliderValue >= 100) {
+        showCelebrationOverlay(context);
       }
     } catch (e, stackTrace) {
       AppLogger.error('Failed to update percentage', e, stackTrace);
@@ -115,11 +112,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
 
       await _loadGoal();
 
-      if (mounted) {
-        if (_goal.isCompleted) {
-          _showCelebration();
-        }
-      }
+      if (mounted && _goal.isCompleted) showCelebrationOverlay(context);
     } catch (e, stackTrace) {
       AppLogger.error('Failed to update progress', e, stackTrace);
     }
@@ -137,32 +130,10 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
 
       await _loadGoal();
 
-      if (mounted && _goal.isCompleted) {
-        _showCelebration();
-      }
+      if (mounted && _goal.isCompleted) showCelebrationOverlay(context);
     } catch (e, stackTrace) {
       AppLogger.error('Failed to toggle milestone', e, stackTrace);
     }
-  }
-
-  void _showCelebration() {
-    if (!mounted) return;
-    // Defer to next frame so it shows after _loadGoal's rebuild; use route overlay so it's on top
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      showGeneralDialog<void>(
-        context: context,
-        barrierDismissible: true,
-        barrierColor: Colors.black.withValues(alpha: 0.6),
-        barrierLabel: '',
-        transitionDuration: const Duration(milliseconds: 200),
-        transitionBuilder: (_, animation, __, child) =>
-            FadeTransition(opacity: animation, child: child),
-        pageBuilder: (dialogContext, _, __) => _buildCelebrationContent(
-          onTap: () => Navigator.of(dialogContext).pop(),
-        ),
-      );
-    });
   }
 
   Future<void> _deleteGoal() async {
@@ -453,9 +424,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
           : () async {
               await goalRepository.markLongTermComplete(_goal.id);
               await _loadGoal();
-              if (mounted) {
-                _showCelebration();
-              }
+              if (mounted) showCelebrationOverlay(context);
             },
       icon: const Icon(Icons.check_circle, size: 28),
       label: Text(
@@ -870,71 +839,5 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     );
   }
 
-  /// Celebration content used in the route overlay (showGeneralDialog).
-  Widget _buildCelebrationContent({required VoidCallback onTap}) {
-    const xpText = '+${Gamification.xpPerGoalCompleted} XP';
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: SizedBox.expand(
-        child: Center(
-          child: Container(
-            margin: const EdgeInsets.all(32),
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.crownGold.withValues(alpha: 0.4),
-                  blurRadius: 20,
-                  spreadRadius: 2,
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const CrownIcon(size: 64),
-                const SizedBox(height: 16),
-                const Text(
-                  'Goal Completed!',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: AppColors.xpGreen,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    xpText,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Tap to continue',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 

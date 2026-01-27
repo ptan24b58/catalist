@@ -9,6 +9,7 @@ import '../widgets/gamification/level_badge.dart';
 import '../widgets/gamification/streak_badge.dart';
 import '../widgets/gamification/crown_icon.dart';
 import '../widgets/gamification/xp_burst.dart';
+import '../widgets/celebration_overlay.dart';
 import 'add_goal_screen.dart';
 import 'goal_detail_screen.dart';
 
@@ -74,6 +75,8 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
         // Show XP burst
         _xpOverlayKey.currentState?.showXPBurst(Gamification.xpPerDailyCompletion);
         // Snapshot automatically updated by WidgetUpdateEngine
+        await _loadGoals();
+        if (mounted) showCelebrationOverlay(context);
       } else {
         // For long-term goals, navigate to detail for more complex progress updates
         if (mounted) {
@@ -87,7 +90,6 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
         await _loadGoals();
         return;
       }
-      await _loadGoals();
     } catch (e, stackTrace) {
       AppLogger.error('Failed to log progress', e, stackTrace);
     }
