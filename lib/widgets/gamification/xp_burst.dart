@@ -106,7 +106,7 @@ class XPBurstOverlayState extends State<XPBurstOverlay> {
         widget.child,
         ..._bursts.map((burst) {
           return Positioned(
-            top: MediaQuery.of(context).size.height * 0.35,
+            top: MediaQuery.of(context).size.height * 0.22,
             left: 0,
             right: 0,
             child: Center(
