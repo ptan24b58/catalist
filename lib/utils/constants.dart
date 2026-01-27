@@ -48,7 +48,6 @@ class AppConstants {
   static const String successProgressLogged = 'Progress logged!';
   static const String successProgressUpdated = 'Progress updated!';
   static const String successGoalCompleted = 'Goal completed!';
-  static const String successWidgetUpdated = 'Widget updated';
 
   // ============ Validation Messages ============
   static const String validationAddMilestone = 'Please add at least one milestone';

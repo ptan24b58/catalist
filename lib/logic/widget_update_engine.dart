@@ -72,8 +72,4 @@ class WidgetUpdateEngine {
     }
   }
 
-  /// Force update snapshot (useful for manual refresh)
-  Future<void> forceUpdate({bool isCelebration = false}) async {
-    await _updateSnapshot(isCelebration: isCelebration);
-  }
 }

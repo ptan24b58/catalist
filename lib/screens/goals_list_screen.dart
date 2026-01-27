@@ -7,7 +7,6 @@ import '../utils/progress_formatter.dart';
 import '../utils/snackbar_helper.dart';
 import 'add_goal_screen.dart';
 import 'goal_detail_screen.dart';
-import 'widget_preview_screen.dart';
 
 enum GoalFilter { all, daily, longTerm }
 
@@ -102,14 +101,6 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
     }
   }
 
-  Future<void> _refreshWidget() async {
-    await widgetUpdateEngine.forceUpdate();
-    await _loadGoals();
-    if (mounted) {
-      SnackBarHelper.showInfo(context, AppConstants.successWidgetUpdated);
-    }
-  }
-
   Future<void> _deleteGoal(Goal goal) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -154,25 +145,6 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Goals'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.widgets),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const WidgetPreviewScreen(),
-                ),
-              );
-            },
-            tooltip: 'View Widget Preview',
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _refreshWidget,
-            tooltip: 'Refresh Widget',
-          ),
-        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
           child: _buildFilterTabs(),
