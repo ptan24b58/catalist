@@ -20,13 +20,18 @@ class CTAEngine {
   /// [progressLabel] is used for daily-in-progress when provided (e.g. "2/5").
   static String generateFromContext(CTAContext context, DateTime now, [String? progressLabel]) {
     final list = _messagesFor(context, now);
-    if (list.isEmpty) return "Let's go";
+    if (list.isEmpty) return "Vivian, let's go";
     final seed = (now.hour * 12) + (now.minute ~/ 5);
     final i = seed % list.length;
     String msg = list[i];
     if (context == CTAContext.dailyInProgress && progressLabel != null && list.length > 0) {
-      // Sometimes show progress-specific line
-      if (i % 3 == 0) return "You're at $progressLabel, keep going!";
+      if (i % 3 == 0) {
+        final p = CTAMessages.progressLabelPrefixes;
+        final s = CTAMessages.progressLabelSuffixes;
+        final pre = p[seed % p.length];
+        final suf = s[seed % s.length];
+        return "$pre $progressLabel $suf";
+      }
     }
     return msg;
   }
