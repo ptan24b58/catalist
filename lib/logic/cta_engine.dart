@@ -24,10 +24,10 @@ class CTAEngine {
     final seed = (now.hour * 12) + (now.minute ~/ 5);
     final i = seed % list.length;
     String msg = list[i];
-    if (context == CTAContext.dailyInProgress && progressLabel != null && list.length > 0) {
+    if (context == CTAContext.dailyInProgress && progressLabel != null && list.isNotEmpty) {
       if (i % 3 == 0) {
-        final p = CTAMessages.progressLabelPrefixes;
-        final s = CTAMessages.progressLabelSuffixes;
+        const p = CTAMessages.progressLabelPrefixes;
+        const s = CTAMessages.progressLabelSuffixes;
         final pre = p[seed % p.length];
         final suf = s[seed % s.length];
         return "$pre $progressLabel $suf";
