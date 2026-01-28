@@ -4,6 +4,7 @@ import '../services/service_locator.dart';
 import '../utils/logger.dart';
 import '../utils/gamification.dart';
 import '../utils/app_colors.dart';
+import '../utils/dialog_helper.dart';
 import '../widgets/gamification/streak_badge.dart';
 import '../widgets/gamification/crown_icon.dart';
 import '../widgets/gamification/xp_burst.dart';
@@ -137,30 +138,11 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
   }
 
   Future<void> _deleteGoal() async {
-    final theme = Theme.of(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text('Delete Goal?'),
-        content: Text('Are you sure you want to delete "${_goal.title}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(
-              foregroundColor: theme.colorScheme.error,
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+    final confirmed = await DialogHelper.showDeleteGoalConfirmation(
+      context,
+      goalTitle: _goal.title,
     );
-
-    if (confirmed == true) {
+    if (confirmed) {
       try {
         await goalRepository.deleteGoal(_goal.id);
         if (mounted) {

@@ -15,10 +15,22 @@ class AppConstants {
   static const int maxTitleLength = 100;
 
   // ============ Mascot Configuration ============
-  static const Duration celebrateDuration = Duration(seconds: 5);
+  static const Duration celebrateDuration = Duration(minutes: 5);
 
   // ============ Widget Snapshot ============
   static const int snapshotVersion = 2; // Bumped for goal redesign
+
+  // ============ Time-of-day band boundaries (hour, exclusive end) ============
+  /// Bands: dawn 5–11, day 11–17, dusk 17–22, night 22–5. Used by CTA and widget backgrounds.
+  static const int timeBandDawnEnd = 11;
+  static const int timeBandDayEnd = 17;
+  static const int timeBandDuskEnd = 22;
+
+  /// Hour at which "end of day" / go to bed CTA starts (23 = 11pm).
+  static const int endOfDayStartHour = 23;
+
+  /// Hours when widget focuses on long-term goals (1 hr each). Rest of time = daily focus.
+  static const List<int> longTermFocusHours = [14, 20];
 
   // ============ Urgency Thresholds ============
   static const double urgencyHappy = 0.2;

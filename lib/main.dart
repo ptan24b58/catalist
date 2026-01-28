@@ -5,6 +5,13 @@ import 'services/widget_action_handler.dart';
 import 'utils/app_colors.dart';
 import 'utils/logger.dart';
 
+const _textBold =
+    TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold);
+const _textW600 =
+    TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600);
+const _textPrimary = TextStyle(color: AppColors.textPrimary);
+const _textSecondary = TextStyle(color: AppColors.textSecondary);
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -132,48 +139,21 @@ class GoalTrackerApp extends StatelessWidget {
         ),
       ),
       textTheme: const TextTheme(
-        displayLarge: TextStyle(
-          color: AppColors.textPrimary,
-          fontWeight: FontWeight.bold,
-        ),
-        displayMedium: TextStyle(
-          color: AppColors.textPrimary,
-          fontWeight: FontWeight.bold,
-        ),
-        displaySmall: TextStyle(
-          color: AppColors.textPrimary,
-          fontWeight: FontWeight.bold,
-        ),
-        headlineLarge: TextStyle(
-          color: AppColors.textPrimary,
-          fontWeight: FontWeight.bold,
-        ),
-        headlineMedium: TextStyle(
-          color: AppColors.textPrimary,
-          fontWeight: FontWeight.bold,
-        ),
-        headlineSmall: TextStyle(
-          color: AppColors.textPrimary,
-          fontWeight: FontWeight.bold,
-        ),
-        titleLarge: TextStyle(
-          color: AppColors.textPrimary,
-          fontWeight: FontWeight.bold,
-        ),
-        titleMedium: TextStyle(
-          color: AppColors.textPrimary,
-          fontWeight: FontWeight.w600,
-        ),
-        titleSmall: TextStyle(color: AppColors.textPrimary),
-        bodyLarge: TextStyle(color: AppColors.textPrimary),
-        bodyMedium: TextStyle(color: AppColors.textPrimary),
-        bodySmall: TextStyle(color: AppColors.textSecondary),
-        labelLarge: TextStyle(
-          color: AppColors.textPrimary,
-          fontWeight: FontWeight.w600,
-        ),
-        labelMedium: TextStyle(color: AppColors.textPrimary),
-        labelSmall: TextStyle(color: AppColors.textSecondary),
+        displayLarge: _textBold,
+        displayMedium: _textBold,
+        displaySmall: _textBold,
+        headlineLarge: _textBold,
+        headlineMedium: _textBold,
+        headlineSmall: _textBold,
+        titleLarge: _textBold,
+        titleMedium: _textW600,
+        titleSmall: _textPrimary,
+        bodyLarge: _textPrimary,
+        bodyMedium: _textPrimary,
+        bodySmall: _textSecondary,
+        labelLarge: _textW600,
+        labelMedium: _textPrimary,
+        labelSmall: _textSecondary,
       ),
     );
   }

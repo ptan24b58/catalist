@@ -7,6 +7,12 @@ class WidgetSnapshot {
   final TopGoal? topGoal;
   final MascotState mascot;
   final String? cta; // Dynamic call-to-action message
+  /// Background status for gradient/pattern (celebrate, on_track, behind, urgent, empty)
+  final String? backgroundStatus;
+  /// Time band for rotation (dawn, day, dusk, night)
+  final String? backgroundTimeBand;
+  /// Variant 1–3: which of the multiple backgrounds to use for this (status, time)
+  final int? backgroundVariant;
 
   const WidgetSnapshot({
     required this.version,
@@ -14,6 +20,9 @@ class WidgetSnapshot {
     this.topGoal,
     required this.mascot,
     this.cta,
+    this.backgroundStatus,
+    this.backgroundTimeBand,
+    this.backgroundVariant,
   });
 
   Map<String, dynamic> toJson() {
@@ -23,6 +32,9 @@ class WidgetSnapshot {
       'topGoal': topGoal?.toJson(),
       'mascot': mascot.toJson(),
       'cta': cta,
+      'backgroundStatus': backgroundStatus,
+      'backgroundTimeBand': backgroundTimeBand,
+      'backgroundVariant': backgroundVariant,
     };
   }
 
@@ -35,6 +47,9 @@ class WidgetSnapshot {
           : null,
       mascot: MascotState.fromJson(json['mascot'] as Map<String, dynamic>),
       cta: json['cta'] as String?,
+      backgroundStatus: json['backgroundStatus'] as String?,
+      backgroundTimeBand: json['backgroundTimeBand'] as String?,
+      backgroundVariant: json['backgroundVariant'] as int?,
     );
   }
 
@@ -44,6 +59,9 @@ class WidgetSnapshot {
     TopGoal? topGoal,
     MascotState? mascot,
     String? cta,
+    String? backgroundStatus,
+    String? backgroundTimeBand,
+    int? backgroundVariant,
   }) {
     return WidgetSnapshot(
       version: version ?? this.version,
@@ -51,6 +69,9 @@ class WidgetSnapshot {
       topGoal: topGoal ?? this.topGoal,
       mascot: mascot ?? this.mascot,
       cta: cta ?? this.cta,
+      backgroundStatus: backgroundStatus ?? this.backgroundStatus,
+      backgroundTimeBand: backgroundTimeBand ?? this.backgroundTimeBand,
+      backgroundVariant: backgroundVariant ?? this.backgroundVariant,
     );
   }
 }

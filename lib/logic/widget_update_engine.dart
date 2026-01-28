@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import '../data/goal_repository.dart';
 import '../domain/goal.dart';
+import '../domain/mascot_state.dart';
 import '../services/widget_snapshot_service.dart';
 import '../services/widget_notifier.dart';
 import '../utils/logger.dart';
@@ -14,6 +17,7 @@ class WidgetUpdateEngine {
   final WidgetSnapshotService _snapshotService;
   bool _isUpdating = false;
   Future<void>? _pendingUpdate;
+  Timer? _celebrateExpiryTimer;
 
   WidgetUpdateEngine(this._goalRepository, this._snapshotService) {
     _goalRepository.setChangeListener(_handleGoalChange);
@@ -31,21 +35,19 @@ class WidgetUpdateEngine {
 
   /// Internal method to update snapshot with debouncing and race condition prevention
   Future<void> _updateSnapshot({required bool isCelebration}) async {
-    // If already updating, wait for current update and skip this one
-    if (_isUpdating && _pendingUpdate != null) {
+    if (_pendingUpdate != null) {
       AppLogger.debug('Snapshot update already in progress, skipping');
       try {
         await _pendingUpdate;
-      } catch (_) {
-        // Ignore errors from pending update
-      }
+      } catch (_) {}
       return;
     }
-
-    // Create update future and store it
     _pendingUpdate = _performUpdate(isCelebration: isCelebration);
-    await _pendingUpdate;
-    _pendingUpdate = null;
+    try {
+      await _pendingUpdate;
+    } finally {
+      _pendingUpdate = null;
+    }
   }
 
   /// Perform the actual snapshot update
@@ -57,7 +59,7 @@ class WidgetUpdateEngine {
     _isUpdating = true;
     try {
       final currentSnapshot = await _snapshotService.getSnapshot();
-      await _snapshotService.generateSnapshot(
+      final snapshot = await _snapshotService.generateSnapshot(
         currentMascotState: currentSnapshot?.mascot,
         isCelebration: isCelebration,
       );
@@ -65,6 +67,20 @@ class WidgetUpdateEngine {
       // Wait for SharedPreferences to flush before notifying widget
       await Future.delayed(const Duration(milliseconds: 300));
       await WidgetNotifier.notifyWidgetUpdate();
+
+      // When celebration expires, regenerate snapshot so CTA and background stay in sync
+      if (isCelebration &&
+          snapshot.mascot.emotion == MascotEmotion.celebrate &&
+          snapshot.mascot.expiresAt != null) {
+        final when = snapshot.mascot.expiresAt!.difference(DateTime.now());
+        if (when > Duration.zero) {
+          _celebrateExpiryTimer?.cancel();
+          _celebrateExpiryTimer = Timer(when, () {
+            _celebrateExpiryTimer = null;
+            _updateSnapshot(isCelebration: false);
+          });
+        }
+      }
     } catch (e, stackTrace) {
       AppLogger.error('Failed to update widget snapshot', e, stackTrace);
     } finally {

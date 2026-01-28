@@ -10,7 +10,10 @@ data class WidgetSnapshot(
     val generatedAt: Long,
     val topGoal: TopGoal?,
     val mascot: MascotState,
-    val cta: String? = null
+    val cta: String? = null,
+    val backgroundStatus: String? = null,   // celebrate, on_track, behind, urgent, empty
+    val backgroundTimeBand: String? = null, // dawn, day, dusk, night
+    val backgroundVariant: Int? = null     // 1, 2, or 3
 )
 
 data class TopGoal(
@@ -29,7 +32,8 @@ data class TopGoal(
 
 data class MascotState(
     val emotion: String,
-    val frameIndex: Int
+    val frameIndex: Int,
+    val expiresAt: Long? = null  // epoch ms; when set, celebrate is valid until this time
 )
 
 // Helper functions for loading and parsing snapshot
@@ -69,7 +73,8 @@ fun parseSnapshot(json: String): WidgetSnapshot? {
         val mascotObj = obj.getJSONObject("mascot")
         val mascot = MascotState(
             emotion = mascotObj.getString("emotion"),
-            frameIndex = mascotObj.getInt("frameIndex")
+            frameIndex = mascotObj.optInt("frameIndex", 0),
+            expiresAt = if (mascotObj.has("expiresAt") && !mascotObj.isNull("expiresAt")) mascotObj.getLong("expiresAt") else null
         )
 
         WidgetSnapshot(
@@ -77,7 +82,10 @@ fun parseSnapshot(json: String): WidgetSnapshot? {
             generatedAt = obj.getLong("generatedAt"),
             topGoal = topGoal,
             mascot = mascot,
-            cta = if (obj.has("cta") && !obj.isNull("cta")) obj.getString("cta") else null
+            cta = if (obj.has("cta") && !obj.isNull("cta")) obj.getString("cta") else null,
+            backgroundStatus = if (obj.has("backgroundStatus") && !obj.isNull("backgroundStatus")) obj.getString("backgroundStatus") else null,
+            backgroundTimeBand = if (obj.has("backgroundTimeBand") && !obj.isNull("backgroundTimeBand")) obj.getString("backgroundTimeBand") else null,
+            backgroundVariant = if (obj.has("backgroundVariant") && !obj.isNull("backgroundVariant")) obj.getInt("backgroundVariant") else null
         )
     } catch (e: Exception) {
         Log.e("WidgetData", "Error parsing snapshot", e)

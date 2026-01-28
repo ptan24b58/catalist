@@ -96,22 +96,13 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
   }
 
   void _nextStep() {
-    if (_currentStep == 0 && _titleController.text.trim().isEmpty) {
-      return;
-    }
-    if (_currentStep == 2 && _progressType == null) {
-      return;
-    }
-    
+    if (!_canProceed || _currentStep >= 3) return;
     setState(() {
-      if (_currentStep < 3) {
-        _currentStep++;
-        // Auto-select first progress type when goal type changes
-        if (_currentStep == 2 && 
-            _progressType == null && 
-            _availableProgressTypes.isNotEmpty) {
-          _progressType = _availableProgressTypes.first;
-        }
+      _currentStep++;
+      if (_currentStep == 2 &&
+          _progressType == null &&
+          _availableProgressTypes.isNotEmpty) {
+        _progressType = _availableProgressTypes.first;
       }
     });
   }

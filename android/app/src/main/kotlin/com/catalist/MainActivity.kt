@@ -15,6 +15,11 @@ import org.json.JSONObject
 class MainActivity: FlutterActivity() {
     private val CHANNEL = "com.catalist/widget"
 
+    override fun onResume() {
+        super.onResume()
+        updateWidget()
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         

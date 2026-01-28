@@ -5,6 +5,7 @@ import '../utils/logger.dart';
 import '../utils/progress_formatter.dart';
 import '../utils/gamification.dart';
 import '../utils/app_colors.dart';
+import '../utils/dialog_helper.dart';
 import '../widgets/gamification/level_badge.dart';
 import '../widgets/gamification/streak_badge.dart';
 import '../widgets/gamification/crown_icon.dart';
@@ -109,28 +110,11 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
   }
 
   Future<void> _deleteGoal(Goal goal) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Goal'),
-        content: Text('Are you sure you want to delete "${goal.title}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+    final confirmed = await DialogHelper.showDeleteGoalConfirmation(
+      context,
+      goalTitle: goal.title,
     );
-
-    if (confirmed == true) {
+    if (confirmed) {
       try {
         await goalRepository.deleteGoal(goal.id);
         // Snapshot automatically updated by WidgetUpdateEngine
