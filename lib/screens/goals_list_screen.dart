@@ -25,6 +25,7 @@ class GoalsListScreen extends StatefulWidget {
 
 class _GoalsListScreenState extends State<GoalsListScreen> {
   List<Goal> _goals = [];
+  int _lifetimeXp = 0;
   bool _isLoading = true;
   GoalFilter _filter = GoalFilter.all;
   final GlobalKey<XPBurstOverlayState> _xpOverlayKey = GlobalKey();
@@ -65,9 +66,11 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
 
     try {
       final goals = await goalRepository.getAllGoals();
+      final xp = await goalRepository.getLifetimeEarnedXp();
       if (mounted) {
         setState(() {
           _goals = goals;
+          _lifetimeXp = xp;
           _isLoading = false;
           _invalidateCache();
         });
@@ -140,7 +143,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final totalXP = Gamification.calculateTotalXP(_goals);
+    final totalXP = _lifetimeXp;
     final level = Gamification.calculateLevel(totalXP);
     final levelProgress = Gamification.getLevelProgress(totalXP);
     final xpInLevel = Gamification.xpInCurrentLevel(totalXP);

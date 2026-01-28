@@ -6,6 +6,7 @@ import '../utils/constants.dart';
 import '../utils/date_utils.dart';
 import '../utils/id_generator.dart';
 import '../utils/validation.dart';
+import '../utils/gamification.dart';
 
 /// Callback type for goal change events
 typedef GoalChangeCallback = Future<void> Function({
@@ -18,6 +19,7 @@ typedef GoalChangeCallback = Future<void> Function({
 /// Repository for managing goals
 class GoalRepository {
   static const String _goalsKey = 'goals';
+  static const String _lifetimeXpKey = 'lifetime_earned_xp';
   GoalChangeCallback? _onGoalChanged;
 
   /// Register a callback to be notified when goals change
@@ -173,6 +175,36 @@ class GoalRepository {
     }
   }
 
+  /// Lifetime earned XP (never decreases; only increases when goals are completed).
+  /// Migrates from goal-derived XP on first read if key is missing.
+  Future<int> getLifetimeEarnedXp() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.containsKey(_lifetimeXpKey)) {
+        return prefs.getInt(_lifetimeXpKey) ?? 0;
+      }
+      final goals = await getAllGoals();
+      final migrated = (Gamification.calculateTotalXP(goals)).clamp(0, 0x7FFFFFFF);
+      await prefs.setInt(_lifetimeXpKey, migrated);
+      return migrated;
+    } catch (e, stackTrace) {
+      AppLogger.error('Failed to get lifetime XP', e, stackTrace);
+      return 0;
+    }
+  }
+
+  /// Add XP to lifetime total (called when a goal is completed). Never subtract.
+  Future<void> addLifetimeXp(int amount) async {
+    if (amount <= 0) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final current = prefs.getInt(_lifetimeXpKey) ?? 0;
+      await prefs.setInt(_lifetimeXpKey, (current + amount).clamp(0, 0x7FFFFFFF));
+    } catch (e, stackTrace) {
+      AppLogger.error('Failed to add lifetime XP', e, stackTrace);
+    }
+  }
+
   /// Helper to get and validate goal
   Future<Goal> _getGoalOrThrow(String goalId) async {
     if (goalId.isEmpty || !Validation.isValidGoalId(goalId)) {
@@ -220,6 +252,7 @@ class GoalRepository {
           newStreak > goal.longestStreak ? newStreak : goal.longestStreak,
     );
 
+    await addLifetimeXp(Gamification.xpPerDailyCompletion);
     await saveGoal(updatedGoal);
 
     // Notify listeners of progress logged
@@ -247,12 +280,16 @@ class GoalRepository {
     } else {
       // For long-term numeric goals, add to current value
       final newValue = goal.currentValue + amount;
+      final justCompleted = goal.targetValue != null && newValue >= goal.targetValue!;
+      if (!goal.isCompleted && justCompleted) {
+        await addLifetimeXp(Gamification.xpPerGoalCompleted);
+      }
       final updatedGoal = goal.copyWith(
         currentValue: newValue,
         lastCompletedAt: completedAt,
       );
       await saveGoal(updatedGoal);
-      await _notifyProgressLogged(updatedGoal, goal.targetValue != null && newValue >= goal.targetValue!);
+      await _notifyProgressLogged(updatedGoal, justCompleted);
       return updatedGoal;
     }
   }
@@ -264,14 +301,18 @@ class GoalRepository {
       throw Exception('Goal is not a numeric progress type');
     }
 
+    final justCompleted = goal.targetValue != null && newValue >= goal.targetValue!;
+    if (!goal.isCompleted && justCompleted) {
+      await addLifetimeXp(Gamification.xpPerGoalCompleted);
+    }
     final updatedGoal = goal.copyWith(
       currentValue: newValue,
       lastCompletedAt: DateTime.now(),
     );
 
-      await saveGoal(updatedGoal);
-      await _notifyProgressLogged(updatedGoal, goal.targetValue != null && newValue >= goal.targetValue!);
-      return updatedGoal;
+    await saveGoal(updatedGoal);
+    await _notifyProgressLogged(updatedGoal, justCompleted);
+    return updatedGoal;
   }
 
   /// Update percentage progress for long-term goals
@@ -282,13 +323,17 @@ class GoalRepository {
     }
 
     final clampedPercent = newPercent.clamp(0.0, 100.0);
+    final justCompleted = clampedPercent >= 100;
+    if (!goal.isCompleted && justCompleted) {
+      await addLifetimeXp(Gamification.xpPerGoalCompleted);
+    }
     final updatedGoal = goal.copyWith(
       percentComplete: clampedPercent,
       lastCompletedAt: DateTime.now(),
     );
 
     await saveGoal(updatedGoal);
-    await _notifyProgressLogged(updatedGoal, clampedPercent >= 100);
+    await _notifyProgressLogged(updatedGoal, justCompleted);
     return updatedGoal;
   }
 
@@ -318,8 +363,12 @@ class GoalRepository {
       lastCompletedAt: DateTime.now(),
     );
 
+    final justCompleted = updatedMilestones.every((m) => m.completed);
+    if (!goal.isCompleted && justCompleted) {
+      await addLifetimeXp(Gamification.xpPerGoalCompleted);
+    }
     await saveGoal(updatedGoal);
-    await _notifyProgressLogged(updatedGoal, updatedMilestones.every((m) => m.completed));
+    await _notifyProgressLogged(updatedGoal, justCompleted);
     return updatedGoal;
   }
 
@@ -419,6 +468,9 @@ class GoalRepository {
         break;
     }
 
+    if (!goal.isCompleted) {
+      await addLifetimeXp(Gamification.xpPerGoalCompleted);
+    }
     await saveGoal(updatedGoal);
     await _notifyProgressLogged(updatedGoal, true);
     return updatedGoal;

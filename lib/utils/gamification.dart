@@ -30,7 +30,8 @@ class Gamification {
   static const int xpPerStreakDay = 5;
   static const int xpPerLevel = 100;
 
-  /// Calculate total XP from all goals
+  /// Legacy: total XP derived from goals. Used only for one-time migration to
+  /// lifetime XP. Display and levels use [GoalRepository.getLifetimeEarnedXp].
   static int calculateTotalXP(List<Goal> goals) {
     int total = 0;
     
