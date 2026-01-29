@@ -1,10 +1,20 @@
 empty state - show empty state cta and background
 focus only daily goal
-    - if completed a daily goal - show celebration state and completed daily cta for 5min
+    - if completed a daily goal - show celebration state and completed daily cta for 5 min
     - if all daily goal completed - show celebration state and completed all daily cta for the rest of the day
     - if there are still daily goal to be complete - show the normal urgency cta and background
 long term goal
     - if completed a long term goal - show celebration state and completed long term cta for 5 min
     - occationally show urgency state and cta for long term goal thoughout the day for only for an hour each then switch back to focus on daily goal, even if all daily goal is completed then still show all daily goal completed state
 end of day
-    - when it past 11pm - implement this new state, show cta to go to bed soon and create new background that fit this state
+    - when it 11pm to 5am - show cta to go to bed soon
+    - if a goal is completed during this time, still show the 5 min celebration state
+
+rotate cta message and refresh the widget every 30 min to make it feel dynamic, widget would still reflect the current state flow as listed above, make sure it also update properly for bed time 11 pm to 5 am.
+
+1. Empty state
+2. 5-min celebration (any goal)
+3. End of day (11pm-5am)
+4. Long-term focus hour (14:00, 20:00)
+5. All daily complete
+6. Daily in-progress (or fallback to long-term)

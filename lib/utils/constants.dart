@@ -28,6 +28,9 @@ class AppConstants {
 
   /// Hour at which "end of day" / go to bed CTA starts (23 = 11pm).
   static const int endOfDayStartHour = 23;
+  
+  /// Hour at which "end of day" / go to bed CTA ends (5 = 5am).
+  static const int endOfDayEndHour = 5;
 
   /// Hours when widget focuses on long-term goals (1 hr each). Rest of time = daily focus.
   static const List<int> longTermFocusHours = [14, 20];

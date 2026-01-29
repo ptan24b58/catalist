@@ -13,7 +13,7 @@ import '../utils/progress_formatter.dart';
 import '../utils/widget_background_theme.dart';
 
 /// Generates widget snapshots following CTA_engine.txt flow:
-/// empty → daily focus (completed-one 5min | all-daily-done | in-progress) → long-term focus (hour slots) → end of day (11pm+).
+/// 1. empty → 2. 5-min celebration → 3. end of day (11pm-5am) → 4. long-term focus (14:00, 20:00) → 5. all daily complete → 6. daily in-progress
 class WidgetSnapshotService {
   static const String _snapshotKey = 'widget_snapshot';
   final GoalRepository _goalRepository;
@@ -29,138 +29,131 @@ class WidgetSnapshotService {
     final now = DateTime.now();
     final goals = await _goalRepository.getAllGoals();
 
+    // 1. Empty state
     if (goals.isEmpty) {
-      return _emptySnapshot(now);
+      return _buildSnapshot(now: now, context: CTAContext.empty);
     }
 
     final dailyGoals = goals.where((g) => g.goalType == GoalType.daily).toList();
     final longTermGoals = goals.where((g) => g.goalType == GoalType.longTerm).toList();
-    final allDailyComplete = dailyGoals.isNotEmpty && dailyGoals.every((g) => g.isCompleted);
-    final inLongTermHour = AppConstants.longTermFocusHours.contains(now.hour);
+    final incompleteDailies = dailyGoals.where((g) => !g.isCompleted).toList();
+    final incompleteLongTerm = longTermGoals.where((g) => !g.isCompleted).toList();
 
-    // Just completed any goal < 5 min ago → celebration for 5 min (even past 11pm)
-    final completed = goals.where((g) => g.isCompleted).toList()
-      ..sort((a, b) => (b.lastCompletedAt ?? b.createdAt).compareTo(a.lastCompletedAt ?? a.createdAt));
-    if (completed.isNotEmpty) {
-      final last = completed.first;
-      final lastAt = last.lastCompletedAt;
-      if (lastAt != null && now.difference(lastAt) < _fiveMin) {
-        final ctaContext = last.goalType == GoalType.daily
-            ? CTAContext.dailyCompletedOne5Min
-            : CTAContext.longTermCompleted5Min;
-        final urgency = UrgencyEngine.calculateUrgency(last, now);
-        return _snapshotFor(
-          now: now,
-          context: ctaContext,
-          topGoal: _createTopGoal(last, urgency, now),
-          mascot: MascotEngine.createCelebrateState(now),
-          status: WidgetBackgroundStatus.celebrate,
-        );
-      }
-    }
-
-    // End of day (11pm+)
-    if (now.hour >= AppConstants.endOfDayStartHour) {
-      return _snapshotFor(
-        now: now,
-        context: CTAContext.endOfDay,
-        topGoal: () {
-          final g = UrgencyEngine.findMostUrgent(goals, now);
-          return g != null ? _createTopGoal(g, 0, now) : null;
-        }(),
-        mascot: const MascotState(emotion: MascotEmotion.neutral),
-        status: WidgetBackgroundStatus.endOfDay,
-      );
-    }
-
-    // All daily complete → celebration, completed-one 5min else all-daily CTA
-    if (allDailyComplete) {
-      final completedDaily = dailyGoals.toList()
-        ..sort((a, b) => (b.lastCompletedAt ?? b.createdAt).compareTo(a.lastCompletedAt ?? a.createdAt));
-      final last = completedDaily.first;
-      final lastAt = last.lastCompletedAt;
-      final context = (lastAt != null && now.difference(lastAt) < _fiveMin)
+    // 2. 5-min celebration for any recently completed goal (highest priority)
+    final recentlyCompleted = _findRecentlyCompleted(goals, now);
+    if (recentlyCompleted != null) {
+      final ctaContext = recentlyCompleted.goalType == GoalType.daily
           ? CTAContext.dailyCompletedOne5Min
-          : CTAContext.dailyAllComplete;
-      final urgency = UrgencyEngine.calculateUrgency(last, now);
-      return _snapshotFor(
+          : CTAContext.longTermCompleted5Min;
+      return _buildSnapshot(
         now: now,
-        context: context,
-        topGoal: _createTopGoal(last, urgency, now),
+        context: ctaContext,
+        goal: recentlyCompleted,
         mascot: MascotEngine.createCelebrateState(now),
         status: WidgetBackgroundStatus.celebrate,
       );
     }
 
-    // Long-term focus hour, no dailies (or only long-term) → show long-term
-    if (inLongTermHour && dailyGoals.isEmpty && longTermGoals.isNotEmpty) {
-      final completed = longTermGoals.where((g) => g.isCompleted).toList()
-        ..sort((a, b) => (b.lastCompletedAt ?? b.createdAt).compareTo(a.lastCompletedAt ?? a.createdAt));
-      final mostUrgent = UrgencyEngine.findMostUrgent(longTermGoals, now);
-      final lastCompleted = completed.isNotEmpty ? completed.first : null;
-      final justCompleted = lastCompleted != null &&
-          lastCompleted.lastCompletedAt != null &&
-          now.difference(lastCompleted.lastCompletedAt!) < _fiveMin;
-      final context = justCompleted ? CTAContext.longTermCompleted5Min : CTAContext.longTermInProgress;
-      final goal = justCompleted ? lastCompleted : (mostUrgent ?? lastCompleted);
-      if (goal == null) return _emptySnapshot(now);
-      final urgency = UrgencyEngine.calculateUrgency(goal, now);
-      return _snapshotFor(
+    // 3. End of day (11pm to 5am)
+    if (_isEndOfDay(now)) {
+      final mostUrgent = UrgencyEngine.findMostUrgent(goals, now);
+      return _buildSnapshot(
         now: now,
-        context: context,
-        topGoal: _createTopGoal(goal, urgency, now),
-        mascot: justCompleted ? MascotEngine.createCelebrateState(now) : MascotEngine.computeState(goal, now, currentMascotState),
-        status: justCompleted ? WidgetBackgroundStatus.celebrate : _statusFromUrgency(urgency),
+        context: CTAContext.endOfDay,
+        goal: mostUrgent,
+        mascot: const MascotState(emotion: MascotEmotion.neutral),
+        status: WidgetBackgroundStatus.endOfDay,
       );
     }
 
-    // Daily focus: incomplete dailies, or dailies exist and we’re not in long-term hour
-    final incompleteDailies = dailyGoals.where((g) => !g.isCompleted).toList();
-    final completedDailies = dailyGoals.where((g) => g.isCompleted).toList()
-      ..sort((a, b) => (b.lastCompletedAt ?? b.createdAt).compareTo(a.lastCompletedAt ?? a.createdAt));
-    final lastCompletedDaily = completedDailies.isNotEmpty ? completedDailies.first : null;
-    final justCompletedDaily = lastCompletedDaily != null &&
-        lastCompletedDaily.lastCompletedAt != null &&
-        now.difference(lastCompletedDaily.lastCompletedAt!) < _fiveMin;
-
-    CTAContext ctaContext;
-    Goal displayGoal;
-    MascotState mascot;
-    WidgetBackgroundStatus status;
-
-    if (justCompletedDaily) {
-      ctaContext = CTAContext.dailyCompletedOne5Min;
-      displayGoal = lastCompletedDaily;
-      mascot = MascotEngine.createCelebrateState(now);
-      status = WidgetBackgroundStatus.celebrate;
-    } else if (incompleteDailies.isNotEmpty) {
-      ctaContext = CTAContext.dailyInProgress;
-      displayGoal = UrgencyEngine.findMostUrgent(incompleteDailies, now) ?? incompleteDailies.first;
-      mascot = isCelebration
-          ? MascotEngine.createCelebrateState(now)
-          : MascotEngine.computeState(displayGoal, now, currentMascotState);
-      status = isCelebration ? WidgetBackgroundStatus.celebrate : _statusFromUrgency(UrgencyEngine.calculateUrgency(displayGoal, now));
-    } else {
-      // No incomplete dailies, not all complete → only long-term left; show daily focus with “add more” or show most urgent
-      final fallback = UrgencyEngine.findMostUrgent(goals, now);
-      if (fallback == null) return _emptySnapshot(now);
-      ctaContext = fallback.goalType == GoalType.daily ? CTAContext.dailyInProgress : CTAContext.longTermInProgress;
-      displayGoal = fallback;
-      mascot = MascotEngine.computeState(fallback, now, currentMascotState);
-      status = _statusFromUrgency(UrgencyEngine.calculateUrgency(fallback, now));
+    // 4. Long-term focus hour (14:00, 20:00)
+    if (_isLongTermHour(now) && incompleteLongTerm.isNotEmpty) {
+      final mostUrgent = UrgencyEngine.findMostUrgent(incompleteLongTerm, now) ?? incompleteLongTerm.first;
+      final urgency = UrgencyEngine.calculateUrgency(mostUrgent, now);
+      return _buildSnapshot(
+        now: now,
+        context: CTAContext.longTermInProgress,
+        goal: mostUrgent,
+        mascot: MascotEngine.computeState(mostUrgent, now, currentMascotState),
+        status: _statusFromUrgency(urgency),
+      );
     }
 
-    final urgency = UrgencyEngine.calculateUrgency(displayGoal, now);
-    final progressLabel = ctaContext == CTAContext.dailyInProgress ? ProgressFormatter.getProgressLabel(displayGoal, now: now) : null;
-    return _snapshotFor(
+    // 5. All daily goals complete
+    if (dailyGoals.isNotEmpty && incompleteDailies.isEmpty) {
+      final lastCompleted = _findMostRecentlyCompleted(dailyGoals);
+      return _buildSnapshot(
+        now: now,
+        context: CTAContext.dailyAllComplete,
+        goal: lastCompleted,
+        mascot: MascotEngine.createCelebrateState(now),
+        status: WidgetBackgroundStatus.celebrate,
+      );
+    }
+
+    // 6. Daily in progress (or fallback to long-term if no dailies)
+    final targetGoals = incompleteDailies.isNotEmpty ? incompleteDailies : incompleteLongTerm;
+    if (targetGoals.isEmpty) {
+      return _buildSnapshot(now: now, context: CTAContext.empty);
+    }
+
+    final mostUrgent = UrgencyEngine.findMostUrgent(targetGoals, now) ?? targetGoals.first;
+    final urgency = UrgencyEngine.calculateUrgency(mostUrgent, now);
+    final ctaContext = mostUrgent.goalType == GoalType.daily
+        ? CTAContext.dailyInProgress
+        : CTAContext.longTermInProgress;
+
+    return _buildSnapshot(
       now: now,
       context: ctaContext,
-      topGoal: _createTopGoal(displayGoal, urgency, now),
-      mascot: mascot,
-      status: status,
-      progressLabel: progressLabel,
+      goal: mostUrgent,
+      mascot: isCelebration
+          ? MascotEngine.createCelebrateState(now)
+          : MascotEngine.computeState(mostUrgent, now, currentMascotState),
+      status: isCelebration ? WidgetBackgroundStatus.celebrate : _statusFromUrgency(urgency),
+      progressLabel: ctaContext == CTAContext.dailyInProgress
+          ? ProgressFormatter.getProgressLabel(mostUrgent, now: now)
+          : null,
     );
   }
+
+  /// Find the most recently completed goal within 5 minutes
+  Goal? _findRecentlyCompleted(List<Goal> goals, DateTime now) {
+    Goal? recent;
+    DateTime? recentTime;
+    for (final g in goals) {
+      final completedAt = g.lastCompletedAt;
+      if (g.isCompleted && completedAt != null && now.difference(completedAt) < _fiveMin) {
+        if (recentTime == null || completedAt.isAfter(recentTime)) {
+          recent = g;
+          recentTime = completedAt;
+        }
+      }
+    }
+    return recent;
+  }
+
+  /// Find the most recently completed goal from a list
+  Goal? _findMostRecentlyCompleted(List<Goal> goals) {
+    Goal? recent;
+    DateTime? recentTime;
+    for (final g in goals) {
+      final completedAt = g.lastCompletedAt ?? g.createdAt;
+      if (g.isCompleted) {
+        if (recentTime == null || completedAt.isAfter(recentTime)) {
+          recent = g;
+          recentTime = completedAt;
+        }
+      }
+    }
+    return recent;
+  }
+
+  bool _isEndOfDay(DateTime now) =>
+      now.hour >= AppConstants.endOfDayStartHour || now.hour < AppConstants.endOfDayEndHour;
+
+  bool _isLongTermHour(DateTime now) =>
+      AppConstants.longTermFocusHours.contains(now.hour);
 
   WidgetBackgroundStatus _statusFromUrgency(double urgency) {
     if (urgency >= AppConstants.urgencyWorried) return WidgetBackgroundStatus.urgent;
@@ -168,23 +161,44 @@ class WidgetSnapshotService {
     return WidgetBackgroundStatus.onTrack;
   }
 
-  Future<WidgetSnapshot> _snapshotFor({
+  /// Unified snapshot builder with sensible defaults
+  Future<WidgetSnapshot> _buildSnapshot({
     required DateTime now,
     required CTAContext context,
-    required TopGoal? topGoal,
-    required MascotState mascot,
-    required WidgetBackgroundStatus status,
+    Goal? goal,
+    MascotState? mascot,
+    WidgetBackgroundStatus? status,
     String? progressLabel,
   }) async {
+    final effectiveStatus = status ?? WidgetBackgroundStatus.empty;
+    final effectiveMascot = mascot ?? const MascotState(emotion: MascotEmotion.neutral);
+    final urgency = goal != null ? UrgencyEngine.calculateUrgency(goal, now) : 0.0;
+
+    TopGoal? topGoal;
+    if (goal != null) {
+      final nextDue = goal.getNextDueTime(now);
+      topGoal = TopGoal(
+        id: goal.id,
+        title: goal.title,
+        progress: goal.getProgress(),
+        goalType: goal.goalType.name,
+        progressType: goal.progressType.name,
+        nextDueEpoch: nextDue != null ? (nextDue.millisecondsSinceEpoch ~/ 1000) : null,
+        urgency: urgency,
+        progressLabel: ProgressFormatter.getProgressLabel(goal, now: now),
+      );
+    }
+
     final cta = CTAEngine.generateFromContext(context, now, progressLabel);
-    final statusName = WidgetBackgroundTheme.statusName(status);
+    final statusName = WidgetBackgroundTheme.statusName(effectiveStatus);
     final timeBand = WidgetBackgroundTheme.getTimeBand(now);
     final variant = WidgetBackgroundTheme.getVariant(now, statusName);
+
     final snapshot = WidgetSnapshot(
       version: AppConstants.snapshotVersion,
       generatedAt: now.millisecondsSinceEpoch ~/ 1000,
       topGoal: topGoal,
-      mascot: mascot,
+      mascot: effectiveMascot,
       cta: cta,
       backgroundStatus: statusName,
       backgroundTimeBand: WidgetBackgroundTheme.timeBandName(timeBand),
@@ -192,37 +206,6 @@ class WidgetSnapshotService {
     );
     await _saveSnapshot(snapshot);
     return snapshot;
-  }
-
-  Future<WidgetSnapshot> _emptySnapshot(DateTime now) async {
-    final cta = CTAEngine.generateFromContext(CTAContext.empty, now);
-    final timeBand = WidgetBackgroundTheme.getTimeBand(now);
-    final variant = WidgetBackgroundTheme.getVariant(now, 'empty');
-    final snapshot = WidgetSnapshot(
-      version: AppConstants.snapshotVersion,
-      generatedAt: now.millisecondsSinceEpoch ~/ 1000,
-      mascot: const MascotState(emotion: MascotEmotion.neutral),
-      cta: cta,
-      backgroundStatus: WidgetBackgroundTheme.statusName(WidgetBackgroundStatus.empty),
-      backgroundTimeBand: WidgetBackgroundTheme.timeBandName(timeBand),
-      backgroundVariant: variant,
-    );
-    await _saveSnapshot(snapshot);
-    return snapshot;
-  }
-
-  TopGoal _createTopGoal(Goal goal, double urgency, DateTime now) {
-    final nextDue = goal.getNextDueTime(now);
-    return TopGoal(
-      id: goal.id,
-      title: goal.title,
-      progress: goal.getProgress(),
-      goalType: goal.goalType.name,
-      progressType: goal.progressType.name,
-      nextDueEpoch: nextDue != null ? (nextDue.millisecondsSinceEpoch ~/ 1000) : null,
-      urgency: urgency,
-      progressLabel: ProgressFormatter.getProgressLabel(goal, now: now),
-    );
   }
 
   Future<WidgetSnapshot?> getSnapshot() async {

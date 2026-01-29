@@ -1,10 +1,8 @@
 import 'cta_messages.dart';
 
-/// Flow-based CTA engine. Matches CTA_engine.txt:
-/// - empty → empty CTA
-/// - daily focus: completed-one (5min) | all-daily-done | in-progress
-/// - long-term focus: completed (5min) | in-progress (during focus hour)
-/// - end of day (11pm+) → go to bed CTA
+/// Flow-based CTA engine. Priority order:
+/// 1. empty → 2. 5-min celebration → 3. end of day (11pm-5am)
+/// 4. long-term focus (14:00, 20:00) → 5. all daily complete → 6. daily in-progress
 enum CTAContext {
   empty,
   endOfDay,
@@ -16,12 +14,12 @@ enum CTAContext {
 }
 
 class CTAEngine {
-  /// Returns CTA for the given flow context. Rotates by 5‑min block.
+  /// Returns CTA for the given flow context. Rotates by 30‑min block.
   /// [progressLabel] is used for daily-in-progress when provided (e.g. "2/5").
   static String generateFromContext(CTAContext context, DateTime now, [String? progressLabel]) {
     final list = _messagesFor(context, now);
     if (list.isEmpty) return "Vivian, let's go";
-    final seed = (now.hour * 12) + (now.minute ~/ 5);
+    final seed = (now.hour * 2) + (now.minute ~/ 30);
     final i = seed % list.length;
     String msg = list[i];
     if (context == CTAContext.dailyInProgress && progressLabel != null && list.isNotEmpty) {

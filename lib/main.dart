@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'screens/goals_list_screen.dart';
 import 'services/service_locator.dart';
 import 'services/widget_action_handler.dart';
+import 'services/background_task_service.dart';
 import 'utils/app_colors.dart';
 import 'utils/logger.dart';
 
@@ -21,6 +23,28 @@ void main() async {
   } catch (e, stackTrace) {
     AppLogger.error('Error initializing WidgetUpdateEngine', e, stackTrace);
   }
+
+  // Initialize background task service for widget refresh when app is closed
+  try {
+    await BackgroundTaskService.initialize();
+    await BackgroundTaskService.schedulePeriodicRefresh();
+    await BackgroundTaskService.scheduleStateTransitions();
+  } catch (e, stackTrace) {
+    AppLogger.error('Error initializing background tasks', e, stackTrace);
+  }
+
+  // Set up method channel handler for native calls
+  const methodChannel = MethodChannel('com.catalist/widget');
+  methodChannel.setMethodCallHandler((call) async {
+    if (call.method == 'regenerateSnapshot') {
+      try {
+        await widgetUpdateEngine.regenerateSnapshot();
+      } catch (e, stackTrace) {
+        AppLogger.error('Error regenerating snapshot from native call', e, stackTrace);
+      }
+    }
+    return null;
+  });
 
   // Check for widget actions on app start
   try {
