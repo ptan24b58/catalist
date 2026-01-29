@@ -48,6 +48,9 @@ class CatalistWidgetProvider : AppWidgetProvider() {
     }
 
     companion object {
+        // Long-term focus hours (must match Flutter's AppConstants.longTermFocusHours)
+        private val LONG_TERM_FOCUS_HOURS = listOf(14, 20)
+
         fun updateAppWidget(
             context: Context,
             appWidgetManager: AppWidgetManager,
@@ -55,27 +58,42 @@ class CatalistWidgetProvider : AppWidgetProvider() {
         ) {
             val snapshot = loadSnapshot(context)
             val views = RemoteViews(context.packageName, R.layout.catalist_widget_layout)
+            val now = System.currentTimeMillis()
+            val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+
+            // Check if snapshot is stale (older than 35 min)
+            val snapshotAge = if (snapshot != null) now / 1000 - snapshot.generatedAt else Long.MAX_VALUE
+            val isStale = snapshotAge > 2100 // 35 minutes in seconds
 
             val rawStatus = snapshot?.backgroundStatus?.takeIf { it.isNotBlank() } ?: "on_track"
             val status = resolveCelebrateExpiry(rawStatus, snapshot?.mascot)
+
+            // Determine time-aware status when stale
+            val effectiveStatus = if (isStale) statusFromTime(hour) else status
+
             val timeBand = snapshot?.backgroundTimeBand?.takeIf { it.isNotBlank() } ?: timeBandFromSystem()
             val variant = snapshot?.backgroundVariant?.takeIf { it in 1..3 } ?: 1
-            val bgResId = resolveBackgroundDrawable(context, status, timeBand, variant)
+            val bgResId = resolveBackgroundDrawable(context, effectiveStatus, timeBand, variant)
             views.setInt(R.id.widget_container, "setBackgroundResource", bgResId)
 
             scheduleCelebrateExpiryIfNeeded(context, appWidgetId, rawStatus, snapshot?.mascot)
 
-            // If celebration just expired, trigger regeneration to get correct CTA
+            // If celebration just expired or snapshot is stale, trigger regeneration
             val celebrateExpired = status != rawStatus
-            if (celebrateExpired) {
+            if (celebrateExpired || isStale) {
                 triggerSnapshotRegeneration(context, forceRegenerate = true)
+            }
+
+            // Determine CTA: use time-aware CTA when stale, otherwise use snapshot
+            val ctaText = if (isStale || snapshot?.cta == null) {
+                ctaFromTime(hour, snapshot?.topGoal != null)
+            } else {
+                snapshot.cta
             }
 
             if (snapshot != null && snapshot.topGoal != null) {
                 val goal = snapshot.topGoal!!
 
-                // Use snapshot CTA; fallback only if null
-                val ctaText = snapshot.cta ?: "Let's go!"
                 views.setTextViewText(R.id.cta_text, ctaText)
 
                 val clickIntent = Intent(context, MainActivity::class.java).apply {
@@ -91,7 +109,6 @@ class CatalistWidgetProvider : AppWidgetProvider() {
                     )
                 )
             } else {
-                val ctaText = snapshot?.cta ?: "Let's start!"
                 views.setTextViewText(R.id.cta_text, ctaText)
 
                 val clickIntent = Intent(context, MainActivity::class.java).apply {
@@ -221,6 +238,26 @@ class CatalistWidgetProvider : AppWidgetProvider() {
             var resId = context.resources.getIdentifier(name, "drawable", context.packageName)
             if (resId == 0 && variant != 1) resId = context.resources.getIdentifier(base, "drawable", context.packageName)
             return if (resId != 0) resId else R.drawable.widget_bg_on_track_day
+        }
+
+        /** Determine widget status from current hour (for stale snapshots) */
+        private fun statusFromTime(hour: Int): String {
+            return when {
+                hour >= 23 || hour < 5 -> "end_of_day"
+                hour in LONG_TERM_FOCUS_HOURS -> "on_track"
+                else -> "on_track"
+            }
+        }
+
+        /** Generate time-aware CTA when snapshot is stale */
+        private fun ctaFromTime(hour: Int, hasGoal: Boolean): String {
+            return when {
+                hour >= 23 || hour < 5 -> "Time to rest, Vivian"
+                hour in LONG_TERM_FOCUS_HOURS -> if (hasGoal) "Focus on the big picture" else "Let's start!"
+                hour in 5..10 -> if (hasGoal) "Good morning! Let's go" else "Start your day right"
+                hour in 11..16 -> if (hasGoal) "Keep the momentum going" else "Let's start!"
+                else -> if (hasGoal) "You've got this, Vivian" else "Let's start!"
+            }
         }
     }
 }
