@@ -5,7 +5,6 @@ import '../domain/goal.dart';
 import '../domain/mascot_state.dart';
 import '../services/widget_snapshot_service.dart';
 import '../services/widget_notifier.dart';
-import '../services/background_task_service.dart';
 import '../utils/constants.dart';
 import '../utils/logger.dart';
 
@@ -116,8 +115,6 @@ class WidgetUpdateEngine {
           snapshot.mascot.expiresAt != null &&
           snapshot.mascot.expiresAt!.isAfter(now)) {
         _celebrationExpiresAt = snapshot.mascot.expiresAt;
-        // Also schedule background task for when app is closed
-        BackgroundTaskService.scheduleCelebrationExpiry(snapshot.mascot.expiresAt!);
       } else {
         _celebrationExpiresAt = null;
       }
