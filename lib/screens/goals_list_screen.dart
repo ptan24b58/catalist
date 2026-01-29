@@ -75,7 +75,6 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
           _invalidateCache();
         });
       }
-      // Snapshot automatically updated by WidgetUpdateEngine when goals change
     } catch (e, stackTrace) {
       AppLogger.error('Failed to load goals', e, stackTrace);
       if (mounted) {
@@ -91,7 +90,6 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
         await goalRepository.logDailyCompletion(goal.id, now);
         // Show XP burst
         _xpOverlayKey.currentState?.showXPBurst(Gamification.xpPerDailyCompletion);
-        // Snapshot automatically updated by WidgetUpdateEngine
         await _loadGoals();
         if (mounted) showCelebrationOverlay(context);
       } else {
@@ -120,7 +118,6 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
     if (confirmed) {
       try {
         await goalRepository.deleteGoal(goal.id);
-        // Snapshot automatically updated by WidgetUpdateEngine
         await _loadGoals();
       } catch (e, stackTrace) {
         AppLogger.error('Failed to delete goal', e, stackTrace);

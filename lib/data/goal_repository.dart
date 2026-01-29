@@ -8,55 +8,10 @@ import '../utils/id_generator.dart';
 import '../utils/validation.dart';
 import '../utils/gamification.dart';
 
-/// Callback type for goal change events
-typedef GoalChangeCallback = Future<void> Function({
-  required String event,
-  required Goal? goal,
-  required String? goalId,
-  required bool isCelebration,
-});
-
 /// Repository for managing goals
 class GoalRepository {
   static const String _goalsKey = 'goals';
   static const String _lifetimeXpKey = 'lifetime_earned_xp';
-  GoalChangeCallback? _onGoalChanged;
-
-  /// Register a callback to be notified when goals change
-  void setChangeListener(GoalChangeCallback? callback) {
-    _onGoalChanged = callback;
-  }
-
-  /// Notify listeners of a goal change
-  Future<void> _notifyChange({
-    required String event,
-    required Goal? goal,
-    required String? goalId,
-    required bool isCelebration,
-  }) async {
-    if (_onGoalChanged != null) {
-      try {
-        await _onGoalChanged!(
-          event: event,
-          goal: goal,
-          goalId: goalId,
-          isCelebration: isCelebration,
-        );
-      } catch (e, stackTrace) {
-        AppLogger.error('Error in goal change callback', e, stackTrace);
-      }
-    }
-  }
-
-  /// Helper to notify progress logged with completion check
-  Future<void> _notifyProgressLogged(Goal goal, bool isCompleted) async {
-    await _notifyChange(
-      event: 'progress_logged',
-      goal: goal,
-      goalId: goal.id,
-      isCelebration: isCompleted,
-    );
-  }
 
   /// Get all goals
   Future<List<Goal>> getAllGoals() async {
@@ -128,14 +83,6 @@ class GoalRepository {
       }
 
       await _saveAllGoals(goals);
-
-      // Notify listeners
-      await _notifyChange(
-        event: isNew ? 'goal_added' : 'goal_updated',
-        goal: goal,
-        goalId: goal.id,
-        isCelebration: false,
-      );
     } catch (e, stackTrace) {
       AppLogger.error(AppConstants.errorSaveFailed, e, stackTrace);
       rethrow;
@@ -151,14 +98,6 @@ class GoalRepository {
       final goals = await getAllGoals();
       goals.removeWhere((g) => g.id == id);
       await _saveAllGoals(goals);
-
-      // Notify listeners
-      await _notifyChange(
-        event: 'goal_deleted',
-        goal: null,
-        goalId: id,
-        isCelebration: false,
-      );
     } catch (e, stackTrace) {
       AppLogger.error('Failed to delete goal', e, stackTrace);
       rethrow;
@@ -255,14 +194,6 @@ class GoalRepository {
     await addLifetimeXp(Gamification.xpPerDailyCompletion);
     await saveGoal(updatedGoal);
 
-    // Notify listeners of progress logged
-    await _notifyChange(
-      event: 'progress_logged',
-      goal: updatedGoal,
-      goalId: updatedGoal.id,
-      isCelebration: true,
-    );
-
     return updatedGoal;
   }
 
@@ -289,7 +220,6 @@ class GoalRepository {
         lastCompletedAt: completedAt,
       );
       await saveGoal(updatedGoal);
-      await _notifyProgressLogged(updatedGoal, justCompleted);
       return updatedGoal;
     }
   }
@@ -311,7 +241,6 @@ class GoalRepository {
     );
 
     await saveGoal(updatedGoal);
-    await _notifyProgressLogged(updatedGoal, justCompleted);
     return updatedGoal;
   }
 
@@ -333,7 +262,6 @@ class GoalRepository {
     );
 
     await saveGoal(updatedGoal);
-    await _notifyProgressLogged(updatedGoal, justCompleted);
     return updatedGoal;
   }
 
@@ -368,7 +296,6 @@ class GoalRepository {
       await addLifetimeXp(Gamification.xpPerGoalCompleted);
     }
     await saveGoal(updatedGoal);
-    await _notifyProgressLogged(updatedGoal, justCompleted);
     return updatedGoal;
   }
 
@@ -418,15 +345,6 @@ class GoalRepository {
     final updatedGoal = goal.copyWith(milestones: updatedMilestones);
 
     await saveGoal(updatedGoal);
-
-    // Notify listeners
-    await _notifyChange(
-      event: 'goal_updated',
-      goal: updatedGoal,
-      goalId: updatedGoal.id,
-      isCelebration: false,
-    );
-
     return updatedGoal;
   }
 
@@ -472,7 +390,6 @@ class GoalRepository {
       await addLifetimeXp(Gamification.xpPerGoalCompleted);
     }
     await saveGoal(updatedGoal);
-    await _notifyProgressLogged(updatedGoal, true);
     return updatedGoal;
   }
 

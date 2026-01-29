@@ -5,14 +5,11 @@ import android.content.ComponentName
 import android.content.Intent
 import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
-import io.flutter.embedding.engine.FlutterEngine
-import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class MainActivity: FlutterActivity() {
-    private val CHANNEL = "com.catalist/widget"
 
     override fun onResume() {
         super.onResume()
@@ -23,22 +20,6 @@ class MainActivity: FlutterActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-    }
-
-    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
-        super.configureFlutterEngine(flutterEngine)
-
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "updateWidget" -> {
-                    updateWidget()
-                    result.success(null)
-                }
-                else -> {
-                    result.notImplemented()
-                }
-            }
-        }
     }
 
     private fun updateWidget() {
