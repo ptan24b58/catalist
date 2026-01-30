@@ -63,12 +63,15 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
 
   Future<void> _logDailyCompletion() async {
     try {
-      await goalRepository.logDailyCompletion(_goal.id, DateTime.now());
-      // Show XP burst
-      _xpOverlayKey.currentState?.showXPBurst(Gamification.xpPerDailyCompletion);
+      final wasCompleted = _goal.isCompleted;
+      final updated = await goalRepository.logDailyCompletion(_goal.id, DateTime.now());
       await _loadGoal();
 
-      if (mounted) showCelebrationOverlay(context);
+      // Only show XP burst and celebration when goal transitions to complete
+      if (!wasCompleted && updated.isCompleted && mounted) {
+        _xpOverlayKey.currentState?.showXPBurst(Gamification.xpPerDailyCompletion);
+        showCelebrationOverlay(context);
+      }
     } catch (e, stackTrace) {
       AppLogger.error('Failed to log progress', e, stackTrace);
     }

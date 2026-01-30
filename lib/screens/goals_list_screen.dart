@@ -89,11 +89,14 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
     final now = DateTime.now();
     try {
       if (goal.goalType == GoalType.daily) {
-        await goalRepository.logDailyCompletion(goal.id, now);
-        // Show XP burst
-        _xpOverlayKey.currentState?.showXPBurst(Gamification.xpPerDailyCompletion);
+        final wasCompleted = goal.isCompleted;
+        final updated = await goalRepository.logDailyCompletion(goal.id, now);
         await _loadGoals();
-        if (mounted) showCelebrationOverlay(context);
+        // Only show XP burst and celebration when goal transitions to complete
+        if (!wasCompleted && updated.isCompleted && mounted) {
+          _xpOverlayKey.currentState?.showXPBurst(Gamification.xpPerDailyCompletion);
+          showCelebrationOverlay(context);
+        }
       } else {
         // For long-term goals, navigate to detail for more complex progress updates
         if (mounted) {
@@ -204,6 +207,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
               ),
         ),
         floatingActionButton: FloatingActionButton(
+          heroTag: 'goals_list_fab',
           onPressed: () async {
             await Navigator.push(
               context,
@@ -421,52 +425,55 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                _buildProgressIndicator(goal, progress),
-                const SizedBox(height: 12),
+                if (goal.goalType != GoalType.daily) ...[
+                  const SizedBox(height: 16),
+                  _buildProgressIndicator(goal, progress),
+                  const SizedBox(height: 12),
+                ] else
+                  const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      ProgressFormatter.getDetailedProgressLabel(goal, now: now),
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed: () => _deleteGoal(goal),
+                      tooltip: 'Delete',
+                      visualDensity: VisualDensity.compact,
+                      style: IconButton.styleFrom(
+                        foregroundColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                       ),
                     ),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (!isCompleted && goal.goalType == GoalType.daily)
-                          Container(
-                            decoration: BoxDecoration(
-                              color: AppColors.xpGreen.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: IconButton(
-                              icon: const Icon(Icons.check_circle_outline),
-                              onPressed: () => _logProgress(goal),
-                              tooltip: 'Complete Today',
-                              visualDensity: VisualDensity.compact,
-                              style: IconButton.styleFrom(
-                                foregroundColor: AppColors.xpGreen,
-                                minimumSize: const Size(44, 44),
-                              ),
-                            ),
-                          ),
-                        const SizedBox(width: 4),
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline),
-                          onPressed: () => _deleteGoal(goal),
-                          tooltip: 'Delete',
-                          visualDensity: VisualDensity.compact,
-                          style: IconButton.styleFrom(
-                            foregroundColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                    Expanded(
+                      child: Center(
+                        child: Text(
+                          ProgressFormatter.getDetailedProgressLabel(goal, now: now),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                           ),
                         ),
-                      ],
+                      ),
                     ),
+                    if (!isCompleted && goal.goalType == GoalType.daily)
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.xpGreen.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.check_circle_outline),
+                          onPressed: () => _logProgress(goal),
+                          tooltip: 'Complete Today',
+                          visualDensity: VisualDensity.compact,
+                          style: IconButton.styleFrom(
+                            foregroundColor: AppColors.xpGreen,
+                            minimumSize: const Size(44, 44),
+                          ),
+                        ),
+                      ),
+                    if (isCompleted || goal.goalType != GoalType.daily)
+                      const SizedBox(width: 44),
                   ],
                 ),
               ],

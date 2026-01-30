@@ -133,6 +133,14 @@ class Goal {
         return milestones.isNotEmpty &&
             milestones.every((m) => m.completed);
       case ProgressType.numeric:
+        if (goalType == GoalType.daily) {
+          // Daily numeric: check if today's completions reach the target
+          final now = DateTime.now();
+          final completionsToday = todayCompletions
+              .where((c) => DateUtils.isSameDay(c, now))
+              .length;
+          return targetValue != null && completionsToday >= targetValue!;
+        }
         return targetValue != null && currentValue >= targetValue!;
     }
   }
@@ -153,6 +161,14 @@ class Goal {
         return completed / milestones.length;
       case ProgressType.numeric:
         if (targetValue == null || targetValue == 0) return 0.0;
+        if (goalType == GoalType.daily) {
+          // Daily numeric: progress based on today's completions
+          final now = DateTime.now();
+          final completionsToday = todayCompletions
+              .where((c) => DateUtils.isSameDay(c, now))
+              .length;
+          return (completionsToday / targetValue!).clamp(0.0, 1.0);
+        }
         return (currentValue / targetValue!).clamp(0.0, 1.0);
     }
   }

@@ -111,6 +111,7 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
               ),
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'memories_fab',
         onPressed: _addStandaloneMemory,
         backgroundColor: AppColors.xpGreen,
         foregroundColor: Colors.white,
