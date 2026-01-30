@@ -60,7 +60,7 @@ class TraditionalWidgetProvider : AppWidgetProvider() {
                 val emotion = snapshot.mascot.emotion
                 
                 // Set progress label
-                views.setTextViewText(R.id.progress_label, goal.progressLabel ?: "${(goal.progress * 100).toInt()}%")
+                views.setTextViewText(R.id.cta_text, goal.progressLabel ?: "${(goal.progress * 100).toInt()}%")
                 
                 // Set background color based on emotion
                 val backgroundColor = getEmotionColorRes(emotion)
@@ -83,7 +83,7 @@ class TraditionalWidgetProvider : AppWidgetProvider() {
                 Log.d("TraditionalWidget", "✅ Widget updated with goal: ${goal.title}, emotion: $emotion")
             } else {
                 // No goals state
-                views.setTextViewText(R.id.progress_label, "Add a goal!")
+                views.setTextViewText(R.id.cta_text, "Add a goal!")
                 views.setInt(R.id.widget_container, "setBackgroundColor", 0xFFE6F0F9.toInt())
                 
                 val clickIntent = Intent(context, MainActivity::class.java).apply {
