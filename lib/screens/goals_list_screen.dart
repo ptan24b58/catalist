@@ -13,9 +13,8 @@ import '../widgets/gamification/xp_burst.dart';
 import '../widgets/celebration_overlay.dart';
 import 'add_goal_screen.dart';
 import 'goal_detail_screen.dart';
-import 'memories_screen.dart';
 
-enum GoalFilter { all, daily, longTerm }
+enum GoalFilter { all, daily, longTerm, completed }
 
 class GoalsListScreen extends StatefulWidget {
   const GoalsListScreen({super.key});
@@ -52,9 +51,10 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
     }
     _lastFilter = _filter;
     _cachedFilteredGoals = switch (_filter) {
-      GoalFilter.all => _goals,
-      GoalFilter.daily => _goals.where((g) => g.goalType == GoalType.daily).toList(),
-      GoalFilter.longTerm => _goals.where((g) => g.goalType == GoalType.longTerm).toList(),
+      GoalFilter.all => _goals.where((g) => !g.isCompleted).toList(),
+      GoalFilter.daily => _goals.where((g) => g.goalType == GoalType.daily && !g.isCompleted).toList(),
+      GoalFilter.longTerm => _goals.where((g) => g.goalType == GoalType.longTerm && !g.isCompleted).toList(),
+      GoalFilter.completed => _goals.where((g) => g.isCompleted).toList(),
     };
     return _cachedFilteredGoals!;
   }
@@ -183,45 +183,6 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                               color: AppColors.textSecondary,
                             ),
                           ),
-                          const Spacer(),
-                          // Accomplishments gallery button
-                          Material(
-                            color: AppColors.xpGreen.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(10),
-                            child: InkWell(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const MemoriesScreen(),
-                                  ),
-                                );
-                              },
-                              borderRadius: BorderRadius.circular(10),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.emoji_events_rounded,
-                                      size: 18,
-                                      color: AppColors.xpGreen,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      'Memories',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.xpGreen,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
                         ],
                       ),
                     ),
@@ -252,7 +213,9 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
             );
             await _loadGoals();
           },
-          child: const Icon(Icons.add),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          foregroundColor: Colors.white,
+          child: const Icon(Icons.flag_rounded),
         ),
       ),
     );
@@ -260,7 +223,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
 
   Widget _buildFilterButtons() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      margin: const EdgeInsets.only(left: 16, right: 16, bottom: 12),
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -276,6 +239,9 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
           ),
           Expanded(
             child: _buildFilterButton('Long-term', GoalFilter.longTerm),
+          ),
+          Expanded(
+            child: _buildFilterButton('Done', GoalFilter.completed),
           ),
         ],
       ),
@@ -333,10 +299,18 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
 
   Widget _buildEmptyState() {
     final message = switch (_filter) {
-      GoalFilter.all => 'No goals yet',
-      GoalFilter.daily => 'No daily goals yet',
-      GoalFilter.longTerm => 'No long-term goals yet',
+      GoalFilter.all => 'No active goals',
+      GoalFilter.daily => 'No active daily goals',
+      GoalFilter.longTerm => 'No active long-term goals',
+      GoalFilter.completed => 'No completed goals yet',
     };
+
+    final hint = _filter == GoalFilter.completed
+        ? 'Complete goals to see them here'
+        : 'Tap + to create your first goal';
+    final icon = _filter == GoalFilter.completed
+        ? Icons.emoji_events_outlined
+        : Icons.flag_outlined;
 
     return Center(
       child: Padding(
@@ -345,7 +319,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
             Icon(
-              Icons.flag_outlined,
+              icon,
               size: 64,
               color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
             ),
@@ -359,7 +333,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Tap + to create your first goal',
+              hint,
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
               ),

@@ -68,21 +68,53 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.surfaceTint,
-      appBar: AppBar(
-        title: const Text('Memories'),
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        foregroundColor: theme.colorScheme.onSurface,
+      body: SafeArea(
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                children: [
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppColors.xpGreen.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            Icons.photo_album_rounded,
+                            size: 24,
+                            color: AppColors.xpGreen,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Memories',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: _memories.isEmpty
+                        ? _buildEmptyState(theme)
+                        : _buildGallery(theme),
+                  ),
+                ],
+              ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _memories.isEmpty
-              ? _buildEmptyState(theme)
-              : _buildGallery(theme),
       floatingActionButton: FloatingActionButton(
         onPressed: _addStandaloneMemory,
-        child: const Icon(Icons.add),
+        backgroundColor: AppColors.xpGreen,
+        foregroundColor: Colors.white,
+        child: const Icon(Icons.photo_album_rounded),
       ),
     );
   }
@@ -128,21 +160,20 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
       slivers: [
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
             child: Row(
               children: [
                 const Icon(
                   Icons.auto_awesome,
-                  size: 20,
+                  size: 18,
                   color: AppColors.xpGreen,
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  '${_memories.length} ${_memories.length == 1 ? 'Memory' : 'Memories'}',
+                  '${_memories.length} ${_memories.length == 1 ? 'memory' : 'memories'} captured',
                   style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: theme.colorScheme.onSurface,
+                    fontSize: 14,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
               ],
@@ -150,7 +181,7 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
           ),
         ),
         SliverPadding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
           sliver: SliverList(
             delegate: SliverChildBuilderDelegate(
               (context, index) {

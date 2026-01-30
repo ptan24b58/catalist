@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/goals_list_screen.dart';
+import 'screens/home_screen.dart';
 import 'services/widget_action_handler.dart';
 import 'utils/app_colors.dart';
 import 'utils/logger.dart';
@@ -34,7 +34,7 @@ class GoalTrackerApp extends StatelessWidget {
     return MaterialApp(
       title: 'Catalist',
       theme: _buildTheme(),
-      home: const GoalsListScreen(),
+      home: const HomeScreen(),
       debugShowCheckedModeBanner: false,
       onGenerateRoute: _handleDeepLink,
     );
