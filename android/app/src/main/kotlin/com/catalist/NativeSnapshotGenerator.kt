@@ -176,8 +176,11 @@ object NativeSnapshotGenerator {
         else
             NativeCtaEngine.CTAContext.LONG_TERM_IN_PROGRESS
 
-        val progressLabel = if (ctaContext == NativeCtaEngine.CTAContext.DAILY_IN_PROGRESS)
-            mostUrgent.getProgressLabel(nowMillis) else null
+        val progressLabel = if (ctaContext == NativeCtaEngine.CTAContext.DAILY_IN_PROGRESS) {
+            val completed = dailyGoals.count { it.isCompletedToday(nowMillis) }
+            val total = dailyGoals.size
+            "$completed/$total"
+        } else null
 
         return buildSnapshot(
             nowSec = nowSec,

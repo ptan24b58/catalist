@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../domain/goal.dart';
+import '../services/widget_updater.dart';
 import '../utils/logger.dart';
 import '../utils/constants.dart';
 import '../utils/date_utils.dart';
@@ -8,10 +9,42 @@ import '../utils/id_generator.dart';
 import '../utils/validation.dart';
 import '../utils/gamification.dart';
 
+/// Callback signature for goal change events
+typedef GoalChangeCallback = Future<void> Function({
+  required String event,
+  required Goal? goal,
+  required String? goalId,
+  required bool isCelebration,
+});
+
 /// Repository for managing goals
 class GoalRepository {
   static const String _goalsKey = 'goals';
   static const String _lifetimeXpKey = 'lifetime_earned_xp';
+
+  GoalChangeCallback? _changeListener;
+
+  /// Set a listener to be notified when goals change
+  void setChangeListener(GoalChangeCallback? listener) {
+    _changeListener = listener;
+  }
+
+  /// Notify listener of a goal change
+  Future<void> _notifyChange({
+    required String event,
+    Goal? goal,
+    String? goalId,
+    bool isCelebration = false,
+  }) async {
+    if (_changeListener != null) {
+      await _changeListener!(
+        event: event,
+        goal: goal,
+        goalId: goalId,
+        isCelebration: isCelebration,
+      );
+    }
+  }
 
   /// Get all goals
   Future<List<Goal>> getAllGoals() async {
@@ -73,14 +106,13 @@ class GoalRepository {
   Future<void> saveGoal(Goal goal) async {
     try {
       final goals = await getAllGoals();
-      final index = goals.indexWhere((g) => g.id == goal.id);
-      final isNew = index < 0;
+    final index = goals.indexWhere((g) => g.id == goal.id);
 
-      if (index >= 0) {
-        goals[index] = goal;
-      } else {
-        goals.add(goal);
-      }
+    if (index >= 0) {
+      goals[index] = goal;
+    } else {
+      goals.add(goal);
+    }
 
       await _saveAllGoals(goals);
     } catch (e, stackTrace) {
@@ -419,11 +451,20 @@ class GoalRepository {
     return 1;
   }
 
-  Future<void> _saveAllGoals(List<Goal> goals) async {
+  Future<void> _saveAllGoals(List<Goal> goals, {Goal? changedGoal, String event = 'save', bool isCelebration = false}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final encoded = jsonEncode(goals.map((g) => g.toJson()).toList());
       await prefs.setString(_goalsKey, encoded);
+      // Trigger native widget refresh so CTA reflects the new state
+      WidgetUpdater.update();
+      // Notify change listener
+      await _notifyChange(
+        event: event,
+        goal: changedGoal,
+        goalId: changedGoal?.id,
+        isCelebration: isCelebration,
+      );
     } catch (e, stackTrace) {
       AppLogger.error('Failed to save goals to storage', e, stackTrace);
       rethrow;

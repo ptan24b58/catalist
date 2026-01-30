@@ -23,11 +23,11 @@ object NativeCtaEngine {
     fun generate(context: CTAContext, hour: Int, minute: Int, progressLabel: String? = null): String {
         val list = messagesFor(context, hour)
         if (list.isEmpty()) return "Vivian, let's go"
-        val seed = hour * 2 + minute / 30
+        val seed = hour
         val i = seed % list.size
         val msg = list[i]
         if (context == CTAContext.DAILY_IN_PROGRESS && progressLabel != null) {
-            if (i % 3 == 0) {
+            if (i % 5 == 0) {
                 val pre = PROGRESS_LABEL_PREFIXES[seed % PROGRESS_LABEL_PREFIXES.size]
                 val suf = PROGRESS_LABEL_SUFFIXES[seed % PROGRESS_LABEL_SUFFIXES.size]
                 return "$pre $progressLabel $suf"

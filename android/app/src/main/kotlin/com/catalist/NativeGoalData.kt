@@ -83,6 +83,12 @@ data class NativeGoal(
         }
     }
 
+    /** Whether this daily goal is completed today */
+    fun isCompletedToday(nowMillis: Long): Boolean {
+        if (!isDaily) return isCompleted
+        return getProgressToday(nowMillis) >= dailyTarget
+    }
+
     val dailyTarget: Int get() = targetValue?.toInt() ?: 1
 
     val completedMilestones: Int get() = milestones.count { it.completed }
@@ -109,7 +115,10 @@ data class NativeGoal(
     /** Get progress label (mirrors Dart's ProgressFormatter) */
     fun getProgressLabel(nowMillis: Long): String {
         return when (progressType) {
-            "completion" -> if (isCompleted) "Done" else "Not done"
+            "completion" -> {
+                val done = if (isDaily && lastCompletedAt != null && isSameDay(lastCompletedAt, nowMillis)) 1 else if (isDaily) 0 else if (isCompleted) 1 else 0
+                "$done/1"
+            }
             "percentage" -> "${percentComplete.toInt()}%"
             "milestones" -> "$completedMilestones/${milestones.size}"
             "numeric" -> {

@@ -58,7 +58,8 @@ class CatalistWidgetProvider : AppWidgetProvider() {
         fun updateAppWidget(
             context: Context,
             appWidgetManager: AppWidgetManager,
-            appWidgetId: Int
+            appWidgetId: Int,
+            forceRefresh: Boolean = false
         ) {
             var snapshot = loadSnapshot(context)
             val views = RemoteViews(context.packageName, R.layout.catalist_widget_layout)
@@ -69,8 +70,8 @@ class CatalistWidgetProvider : AppWidgetProvider() {
             val snapshotAge = if (snapshot != null) now / 1000 - snapshot.generatedAt else Long.MAX_VALUE
             val isStale = snapshotAge > STALE_THRESHOLD_SEC
 
-            // If stale or missing, generate a fresh snapshot natively (no Flutter needed)
-            if (isStale) {
+            // If stale, missing, or force-refreshed (goal changed), regenerate natively
+            if (isStale || forceRefresh) {
                 Log.d(TAG, "Snapshot stale (${snapshotAge}s old), generating natively")
                 val fresh = NativeSnapshotGenerator.generate(context)
                 if (fresh != null) {

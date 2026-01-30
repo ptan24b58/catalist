@@ -10,7 +10,7 @@ end of day
     - when it 11pm to 5am - show cta to go to bed soon
     - if a goal is completed during this time, still show the 5 min celebration state
 
-rotate cta message and refresh the widget every 30 min to make it feel dynamic, widget would still reflect the current state flow as listed above, make sure it also update properly for bed time 11 pm to 5 am.
+rotate cta message and refresh the widget every hour to make it feel dynamic, widget would still reflect the current state flow as listed above, make sure it also update properly for bed time 11 pm to 5 am.
 
 1. Empty state
 2. 5-min celebration (any goal)

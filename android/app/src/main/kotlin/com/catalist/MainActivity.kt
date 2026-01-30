@@ -5,11 +5,27 @@ import android.content.ComponentName
 import android.content.Intent
 import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class MainActivity: FlutterActivity() {
+
+    private val CHANNEL = "com.catalist/widget"
+
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
+            if (call.method == "updateWidget") {
+                updateWidget(forceRefresh = true)
+                result.success(null)
+            } else {
+                result.notImplemented()
+            }
+        }
+    }
 
     override fun onResume() {
         super.onResume()
@@ -22,7 +38,7 @@ class MainActivity: FlutterActivity() {
         setIntent(intent)
     }
 
-    private fun updateWidget() {
+    private fun updateWidget(forceRefresh: Boolean = false) {
         try {
             val appWidgetManager = AppWidgetManager.getInstance(this)
             val widgetProvider = ComponentName(this, CatalistWidgetProvider::class.java)
@@ -41,7 +57,8 @@ class MainActivity: FlutterActivity() {
                             CatalistWidgetProvider.updateAppWidget(
                                 this@MainActivity,
                                 appWidgetManager,
-                                widgetId
+                                widgetId,
+                                forceRefresh = forceRefresh
                             )
                         } catch (e: Exception) {
                             Log.e("MainActivity", "Error updating widget $widgetId", e)
