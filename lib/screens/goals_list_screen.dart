@@ -13,6 +13,7 @@ import '../widgets/gamification/xp_burst.dart';
 import '../widgets/celebration_overlay.dart';
 import 'add_goal_screen.dart';
 import 'goal_detail_screen.dart';
+import 'accomplishments_gallery_screen.dart';
 
 enum GoalFilter { all, daily, longTerm }
 
@@ -96,14 +97,21 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
       } else {
         // For long-term goals, navigate to detail for more complex progress updates
         if (mounted) {
-          await Navigator.push(
+          final result = await Navigator.push<Map<String, dynamic>>(
             context,
             MaterialPageRoute(
               builder: (context) => GoalDetailScreen(goal: goal),
             ),
           );
+          await _loadGoals();
+          
+          // Show XP burst and celebration if returned from completing a long-term goal
+          if (result != null && result['celebrate'] == true && mounted) {
+            final xp = result['xp'] as int? ?? 20;
+            _xpOverlayKey.currentState?.showXPBurst(xp);
+            showCelebrationOverlay(context);
+          }
         }
-        await _loadGoals();
         return;
       }
     } catch (e, stackTrace) {
@@ -148,7 +156,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                     xpInLevel: xpInLevel,
                     levelProgress: levelProgress,
                   ),
-                  // Perfect day streak indicator (always visible)
+                  // Perfect day streak and accomplishments button
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                     child: Container(
@@ -173,6 +181,45 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                             style: const TextStyle(
                               fontSize: 14,
                               color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const Spacer(),
+                          // Accomplishments gallery button
+                          Material(
+                            color: AppColors.xpGreen.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                            child: InkWell(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const AccomplishmentsGalleryScreen(),
+                                  ),
+                                );
+                              },
+                              borderRadius: BorderRadius.circular(10),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.emoji_events_rounded,
+                                      size: 18,
+                                      color: AppColors.xpGreen,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'Memories',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.xpGreen,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
                         ],
@@ -345,13 +392,20 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
         color: Colors.transparent,
         child: InkWell(
           onTap: () async {
-            await Navigator.push(
+            final result = await Navigator.push<Map<String, dynamic>>(
               context,
               MaterialPageRoute(
                 builder: (context) => GoalDetailScreen(goal: goal),
               ),
             );
             await _loadGoals();
+            
+            // Show XP burst and celebration if returned from completing a long-term goal
+            if (result != null && result['celebrate'] == true && mounted) {
+              final xp = result['xp'] as int? ?? 20;
+              _xpOverlayKey.currentState?.showXPBurst(xp);
+              showCelebrationOverlay(context);
+            }
           },
           borderRadius: BorderRadius.circular(24),
           child: Padding(

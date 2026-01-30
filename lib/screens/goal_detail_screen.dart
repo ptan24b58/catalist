@@ -9,6 +9,7 @@ import '../widgets/gamification/streak_badge.dart';
 import '../widgets/gamification/crown_icon.dart';
 import '../widgets/gamification/xp_burst.dart';
 import '../widgets/celebration_overlay.dart';
+import 'accomplishment_capture_screen.dart';
 
 class GoalDetailScreen extends StatefulWidget {
   final Goal goal;
@@ -75,21 +76,26 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
 
   Future<void> _updatePercentage() async {
     try {
-      final oldPercent = _goal.percentComplete;
+      final wasCompleted = _goal.isCompleted;
       await goalRepository.updatePercentage(_goal.id, _percentageSliderValue);
-
-      // Show XP burst for progress
-      if (_percentageSliderValue > oldPercent) {
-        final xpEarned = ((_percentageSliderValue - oldPercent) / 10).round() * 2;
-        if (xpEarned > 0) {
-          _xpOverlayKey.currentState?.showXPBurst(xpEarned);
-        }
-      }
 
       await _loadGoal();
 
-      if (mounted && _percentageSliderValue >= 100) {
-        showCelebrationOverlay(context);
+      // Navigate to accomplishment capture for long-term goal completion
+      if (mounted && _percentageSliderValue >= 100 && !wasCompleted) {
+        final result = await Navigator.push<Map<String, dynamic>>(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AccomplishmentCaptureScreen(goal: _goal),
+          ),
+        );
+        
+        if (result != null && result['celebrate'] == true && mounted) {
+          Navigator.of(context).pop({
+            'celebrate': true,
+            'xp': result['xp'] ?? 20,
+          });
+        }
       }
     } catch (e, stackTrace) {
       AppLogger.error('Failed to update percentage', e, stackTrace);
@@ -103,17 +109,32 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     }
 
     try {
+      final wasCompleted = _goal.isCompleted;
       final newValue = _goal.currentValue + value;
       await goalRepository.updateNumericProgress(_goal.id, newValue);
       _progressController.clear();
 
-      // Show XP burst for progress
-      final xpEarned = (value / 10).round().clamp(1, 10);
-      _xpOverlayKey.currentState?.showXPBurst(xpEarned);
-
       await _loadGoal();
 
-      if (mounted && _goal.isCompleted) showCelebrationOverlay(context);
+      // Navigate to accomplishment capture for long-term goal completion
+      if (mounted && _goal.isCompleted && !wasCompleted && _goal.goalType == GoalType.longTerm) {
+        final result = await Navigator.push<Map<String, dynamic>>(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AccomplishmentCaptureScreen(goal: _goal),
+          ),
+        );
+        
+        if (result != null && result['celebrate'] == true && mounted) {
+          Navigator.of(context).pop({
+            'celebrate': true,
+            'xp': result['xp'] ?? 20,
+          });
+        }
+      } else if (mounted && _goal.isCompleted && !wasCompleted) {
+        // Daily goal - just show celebration
+        showCelebrationOverlay(context);
+      }
     } catch (e, stackTrace) {
       AppLogger.error('Failed to update progress', e, stackTrace);
     }
@@ -121,17 +142,27 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
 
   Future<void> _toggleMilestone(Milestone milestone) async {
     try {
-      final wasCompleted = milestone.completed;
+      final wasGoalCompleted = _goal.isCompleted;
       await goalRepository.toggleMilestone(_goal.id, milestone.id);
-
-      // Show XP burst for completing a milestone
-      if (!wasCompleted) {
-        _xpOverlayKey.currentState?.showXPBurst(Gamification.xpPerMilestone);
-      }
 
       await _loadGoal();
 
-      if (mounted && _goal.isCompleted) showCelebrationOverlay(context);
+      // Navigate to accomplishment capture for long-term goal completion
+      if (mounted && _goal.isCompleted && !wasGoalCompleted) {
+        final result = await Navigator.push<Map<String, dynamic>>(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AccomplishmentCaptureScreen(goal: _goal),
+          ),
+        );
+        
+        if (result != null && result['celebrate'] == true && mounted) {
+          Navigator.of(context).pop({
+            'celebrate': true,
+            'xp': result['xp'] ?? 20,
+          });
+        }
+      }
     } catch (e, stackTrace) {
       AppLogger.error('Failed to toggle milestone', e, stackTrace);
     }
@@ -396,6 +427,32 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     };
   }
 
+  Future<void> _completeLongTermGoal() async {
+    // First mark the goal as complete
+    await goalRepository.markLongTermComplete(_goal.id);
+    await _loadGoal();
+    
+    if (!mounted) return;
+    
+    // Navigate to accomplishment capture screen
+    final result = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AccomplishmentCaptureScreen(goal: _goal),
+      ),
+    );
+    
+    // If celebrate flag is set, pop back to goal list with the flag and XP
+    if (result != null && result['celebrate'] == true) {
+      if (mounted) {
+        Navigator.of(context).pop({
+          'celebrate': true,
+          'xp': result['xp'] ?? 20,
+        });
+      }
+    }
+  }
+
   Widget _buildCompletionControls(BuildContext context) {
     if (_goal.isCompleted) {
       return _buildCompletedIndicator(context);
@@ -404,12 +461,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     return ElevatedButton.icon(
       onPressed: _goal.goalType == GoalType.daily
           ? _logDailyCompletion
-          : () async {
-              await goalRepository.markLongTermComplete(_goal.id);
-              await _loadGoal();
-              if (!context.mounted) return;
-              showCelebrationOverlay(context);
-            },
+          : _completeLongTermGoal,
       icon: const Icon(Icons.check_circle, size: 24),
       label: Text(
         _goal.goalType == GoalType.daily

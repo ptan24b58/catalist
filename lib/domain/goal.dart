@@ -90,6 +90,10 @@ class Goal {
   final int longestStreak;
   final DateTime? lastCompletedAt;
 
+  // For long-term goal completion memories
+  final String? completionImagePath;  // Path to celebration photo
+  final String? completionMemo;       // User's reflection/memo on completion
+
   // Common
   final DateTime createdAt;
 
@@ -108,6 +112,8 @@ class Goal {
     this.currentStreak = 0,
     this.longestStreak = 0,
     this.lastCompletedAt,
+    this.completionImagePath,
+    this.completionMemo,
     required this.createdAt,
   });
 
@@ -218,6 +224,8 @@ class Goal {
     int? currentStreak,
     int? longestStreak,
     DateTime? lastCompletedAt,
+    String? completionImagePath,
+    String? completionMemo,
     DateTime? createdAt,
   }) {
     return Goal(
@@ -235,6 +243,8 @@ class Goal {
       currentStreak: currentStreak ?? this.currentStreak,
       longestStreak: longestStreak ?? this.longestStreak,
       lastCompletedAt: lastCompletedAt ?? this.lastCompletedAt,
+      completionImagePath: completionImagePath ?? this.completionImagePath,
+      completionMemo: completionMemo ?? this.completionMemo,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -256,6 +266,8 @@ class Goal {
       'currentStreak': currentStreak,
       'longestStreak': longestStreak,
       'lastCompletedAt': lastCompletedAt?.toIso8601String(),
+      'completionImagePath': completionImagePath,
+      'completionMemo': completionMemo,
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -292,6 +304,8 @@ class Goal {
       lastCompletedAt: json['lastCompletedAt'] != null
           ? DateTime.parse(json['lastCompletedAt'] as String)
           : null,
+      completionImagePath: json['completionImagePath'] as String?,
+      completionMemo: json['completionMemo'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
     );
   }

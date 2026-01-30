@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../domain/goal.dart';
 import '../services/widget_updater.dart';
+import '../services/goal_image_service.dart';
 import '../utils/logger.dart';
 import '../utils/constants.dart';
 import '../utils/date_utils.dart';
@@ -130,6 +131,13 @@ class GoalRepository {
     }
     try {
       final goals = await getAllGoals();
+      
+      // Find the goal to delete and clean up its image if present
+      final goalToDelete = goals.where((g) => g.id == id).firstOrNull;
+      if (goalToDelete?.completionImagePath != null) {
+        await GoalImageService().deleteImage(goalToDelete!.completionImagePath);
+      }
+      
       goals.removeWhere((g) => g.id == id);
       await _saveAllGoals(goals);
     } catch (e, stackTrace) {
