@@ -21,6 +21,8 @@ typedef GoalChangeCallback = Future<void> Function({
 class GoalRepository {
   static const String _goalsKey = 'goals';
   static const String _lifetimeXpKey = 'lifetime_earned_xp';
+  static const String _perfectDayStreakKey = 'perfect_day_streak';
+  static const String _lastPerfectDayKey = 'last_perfect_day';
 
   GoalChangeCallback? _changeListener;
 
@@ -176,6 +178,107 @@ class GoalRepository {
     }
   }
 
+  /// Get the perfect day streak (consecutive days where ALL daily goals were completed).
+  /// This value is persistent and doesn't change when goals are added/deleted.
+  /// It resets only when a day passes without completing all daily goals.
+  Future<int> getPerfectDayStreak() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final streak = prefs.getInt(_perfectDayStreakKey) ?? 0;
+      final lastPerfectDayStr = prefs.getString(_lastPerfectDayKey);
+      
+      if (streak == 0 || lastPerfectDayStr == null) {
+        return 0;
+      }
+      
+      // Check if the streak is still valid (last perfect day was today or yesterday)
+      final lastPerfectDay = DateTime.tryParse(lastPerfectDayStr);
+      if (lastPerfectDay == null) {
+        return 0;
+      }
+      
+      final today = DateUtils.normalizeToDay(DateTime.now());
+      final yesterday = DateUtils.getYesterday(DateTime.now());
+      final normalizedLastPerfect = DateUtils.normalizeToDay(lastPerfectDay);
+      
+      // If last perfect day was today or yesterday, streak is valid
+      if (normalizedLastPerfect == today || normalizedLastPerfect == yesterday) {
+        return streak;
+      }
+      
+      // Streak broken - reset it
+      await prefs.setInt(_perfectDayStreakKey, 0);
+      await prefs.remove(_lastPerfectDayKey);
+      return 0;
+    } catch (e, stackTrace) {
+      AppLogger.error('Failed to get perfect day streak', e, stackTrace);
+      return 0;
+    }
+  }
+
+  /// Check if all daily goals are completed for today and update the perfect day streak.
+  /// Called internally after logging daily goal completion.
+  Future<void> _checkAndUpdatePerfectDayStreak(DateTime now) async {
+    try {
+      final goals = await getAllGoals();
+      final dailyGoals = goals.where((g) => g.goalType == GoalType.daily).toList();
+      
+      // No daily goals = no perfect day streak to track
+      if (dailyGoals.isEmpty) {
+        return;
+      }
+      
+      // Check if ALL daily goals are completed today
+      final today = DateUtils.normalizeToDay(now);
+      final allCompletedToday = dailyGoals.every((goal) {
+        if (goal.lastCompletedAt == null) return false;
+        return DateUtils.normalizeToDay(goal.lastCompletedAt!) == today;
+      });
+      
+      if (!allCompletedToday) {
+        return; // Not all goals done yet, don't update streak
+      }
+      
+      // All goals completed today! Update the perfect day streak.
+      final prefs = await SharedPreferences.getInstance();
+      final currentStreak = prefs.getInt(_perfectDayStreakKey) ?? 0;
+      final lastPerfectDayStr = prefs.getString(_lastPerfectDayKey);
+      
+      // Check if we already counted today as a perfect day
+      if (lastPerfectDayStr != null) {
+        final lastPerfectDay = DateTime.tryParse(lastPerfectDayStr);
+        if (lastPerfectDay != null && DateUtils.normalizeToDay(lastPerfectDay) == today) {
+          return; // Already counted today
+        }
+      }
+      
+      // Determine new streak value
+      int newStreak;
+      if (lastPerfectDayStr == null) {
+        // First perfect day ever
+        newStreak = 1;
+      } else {
+        final lastPerfectDay = DateTime.tryParse(lastPerfectDayStr);
+        final yesterday = DateUtils.getYesterday(now);
+        
+        if (lastPerfectDay != null && DateUtils.normalizeToDay(lastPerfectDay) == yesterday) {
+          // Continuing streak from yesterday
+          newStreak = currentStreak + 1;
+        } else {
+          // Streak was broken, start fresh
+          newStreak = 1;
+        }
+      }
+      
+      await prefs.setInt(_perfectDayStreakKey, newStreak);
+      await prefs.setString(_lastPerfectDayKey, today.toIso8601String());
+      
+      AppLogger.info('Perfect day streak updated: $newStreak');
+    } catch (e, stackTrace) {
+      AppLogger.error('Failed to update perfect day streak', e, stackTrace);
+    }
+  }
+
   /// Helper to get and validate goal
   Future<Goal> _getGoalOrThrow(String goalId) async {
     if (goalId.isEmpty || !Validation.isValidGoalId(goalId)) {
@@ -204,8 +307,18 @@ class GoalRepository {
         .where((c) => DateUtils.isSameDay(c, completedAt))
         .toList();
 
+    // Determine if goal was already completed before this action
+    final wasCompletedBefore = goal.progressType == ProgressType.numeric
+        ? (goal.targetValue != null && todayCompletions.length >= goal.targetValue!)
+        : (lastCompleted == today);
+
     // Add new completion
     todayCompletions.add(completedAt);
+
+    // Determine if goal is now completed after this action
+    final isCompletedAfter = goal.progressType == ProgressType.numeric
+        ? (goal.targetValue != null && todayCompletions.length >= goal.targetValue!)
+        : true; // For completion type, any completion = done
 
     // Update streak logic - only if this is the first completion today
     final newStreak = _calculateNewStreak(
@@ -223,8 +336,16 @@ class GoalRepository {
           newStreak > goal.longestStreak ? newStreak : goal.longestStreak,
     );
 
-    await addLifetimeXp(Gamification.xpPerDailyCompletion);
+    // Only award XP when goal transitions from incomplete → complete
+    // For numeric: only when target is first reached today
+    // For completion: only on first completion of the day
+    if (!wasCompletedBefore && isCompletedAfter) {
+      await addLifetimeXp(Gamification.xpPerDailyCompletion);
+    }
     await saveGoal(updatedGoal);
+    
+    // Check if all daily goals are now completed → update perfect day streak
+    await _checkAndUpdatePerfectDayStreak(completedAt);
 
     return updatedGoal;
   }

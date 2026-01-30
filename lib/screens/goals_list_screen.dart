@@ -26,6 +26,7 @@ class GoalsListScreen extends StatefulWidget {
 class _GoalsListScreenState extends State<GoalsListScreen> {
   List<Goal> _goals = [];
   int _lifetimeXp = 0;
+  int _perfectDayStreak = 0;
   bool _isLoading = true;
   GoalFilter _filter = GoalFilter.all;
   final GlobalKey<XPBurstOverlayState> _xpOverlayKey = GlobalKey();
@@ -33,7 +34,6 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
   // Cached computed values to avoid repeated calculations
   List<Goal>? _cachedFilteredGoals;
   GoalFilter? _lastFilter;
-  int? _cachedHighestStreak;
 
   @override
   void initState() {
@@ -43,7 +43,6 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
 
   void _invalidateCache() {
     _cachedFilteredGoals = null;
-    _cachedHighestStreak = null;
   }
 
   List<Goal> get _filteredGoals {
@@ -67,10 +66,12 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
     try {
       final goals = await goalRepository.getAllGoals();
       final xp = await goalRepository.getLifetimeEarnedXp();
+      final streak = await goalRepository.getPerfectDayStreak();
       if (mounted) {
         setState(() {
           _goals = goals;
           _lifetimeXp = xp;
+          _perfectDayStreak = streak;
           _isLoading = false;
           _invalidateCache();
         });
@@ -125,19 +126,6 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
     }
   }
 
-  /// Get highest streak across all daily goals (cached)
-  int get _highestStreak {
-    if (_cachedHighestStreak != null) return _cachedHighestStreak!;
-    int highest = 0;
-    for (final goal in _goals) {
-      if (goal.goalType == GoalType.daily && goal.currentStreak > highest) {
-        highest = goal.currentStreak;
-      }
-    }
-    _cachedHighestStreak = highest;
-    return highest;
-  }
-
   @override
   Widget build(BuildContext context) {
     final totalXP = _lifetimeXp;
@@ -162,38 +150,37 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                     xpInLevel: xpInLevel,
                     levelProgress: levelProgress,
                   ),
-                  // Streak indicator if any daily goals
-                  if (_highestStreak > 0)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.04),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
+                  // Perfect day streak indicator (always visible)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.04),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          StreakBadge(streak: _perfectDayStreak, size: 22),
+                          const SizedBox(width: 8),
+                          Text(
+                            _perfectDayStreak == 1 ? 'perfect day' : 'perfect days',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: AppColors.textSecondary,
                             ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            StreakBadge(streak: _highestStreak, size: 22),
-                            const SizedBox(width: 8),
-                            const Text(
-                              'day streak',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
+                  ),
                   _buildFilterButtons(),
                   Expanded(
                     child: _filteredGoals.isEmpty

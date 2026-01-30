@@ -113,18 +113,7 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
     }
   }
 
-  Future<void> _selectDeadline() async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _deadline ?? now.add(const Duration(days: 30)),
-      firstDate: now,
-      lastDate: now.add(const Duration(days: 365 * 5)),
-    );
-    if (picked != null) {
-      setState(() => _deadline = picked);
-    }
-  }
+  bool _showCalendar = false;
 
   void _addMilestone() {
     final text = _milestoneController.text.trim();
@@ -844,6 +833,12 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
 
   Widget _buildDeadlineStep(BuildContext context) {
     final theme = Theme.of(context);
+    final now = DateTime.now();
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final deadlineLabel = _deadline != null
+        ? '${months[_deadline!.month - 1]} ${_deadline!.day}, ${_deadline!.year}'
+        : 'Pick a date';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -864,45 +859,119 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
           ),
         ),
         const SizedBox(height: 20),
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: _selectDeadline,
-            borderRadius: BorderRadius.circular(24),
-            child: _wrapCard(
-              context,
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.calendar_today,
-                    size: 22,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(width: 16),
-                  Text(
-                    _deadline == null
-                        ? 'Pick a date'
-                        : '${_deadline!.month}/${_deadline!.day}/${_deadline!.year}',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w500,
-                      color: theme.colorScheme.onSurface,
+        // Date display card / toggle
+        Container(
+          decoration: _cardBoxDecoration,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => setState(() => _showCalendar = !_showCalendar),
+              borderRadius: BorderRadius.circular(24),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: _deadline != null
+                          ? theme.colorScheme.primary.withValues(alpha: 0.2)
+                          : theme.colorScheme.surfaceContainerHighest,
+                      child: Icon(
+                        Icons.calendar_today,
+                        size: 20,
+                        color: _deadline != null
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                      ),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            deadlineLabel,
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w600,
+                              color: _deadline != null
+                                  ? theme.colorScheme.onSurface
+                                  : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                            ),
+                          ),
+                          if (_deadline != null) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              '${_deadline!.difference(now).inDays} days from now',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      _showCalendar ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
+        // Inline calendar
+        if (_showCalendar) ...[
+          const SizedBox(height: 12),
+          Container(
+            decoration: _cardBoxDecoration,
+            clipBehavior: Clip.antiAlias,
+            child: Theme(
+              data: theme.copyWith(
+                colorScheme: theme.colorScheme.copyWith(
+                  primary: theme.colorScheme.primary,
+                  onPrimary: Colors.white,
+                  surface: Colors.white,
+                  onSurface: theme.colorScheme.onSurface,
+                ),
+                textButtonTheme: TextButtonThemeData(
+                  style: TextButton.styleFrom(
+                    foregroundColor: theme.colorScheme.primary,
+                  ),
+                ),
+              ),
+              child: CalendarDatePicker(
+                initialDate: _deadline ?? now.add(const Duration(days: 30)),
+                firstDate: now,
+                lastDate: now.add(const Duration(days: 365 * 5)),
+                onDateChanged: (picked) {
+                  setState(() {
+                    _deadline = picked;
+                    _showCalendar = false;
+                  });
+                },
+              ),
+            ),
+          ),
+        ],
         if (_deadline != null) ...[
-          const SizedBox(height: 8),
-          TextButton(
-            onPressed: () => setState(() => _deadline = null),
-            child: Text(
-              'Remove deadline',
-              style: TextStyle(
+          const SizedBox(height: 12),
+          Center(
+            child: TextButton.icon(
+              onPressed: () => setState(() => _deadline = null),
+              icon: Icon(
+                Icons.close,
+                size: 18,
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                fontSize: 14,
+              ),
+              label: Text(
+                'Remove deadline',
+                style: TextStyle(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  fontSize: 14,
+                ),
               ),
             ),
           ),
