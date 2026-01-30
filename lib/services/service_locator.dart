@@ -10,9 +10,9 @@ class ServiceLocator {
   static ServiceLocator get instance => _instance;
 
   late final GoalRepository _goalRepository = GoalRepository();
-  late final WidgetSnapshotService _widgetSnapshotService =
+  late final WidgetSnapshotService _widgetSnapshotService = 
       WidgetSnapshotService(_goalRepository);
-  late final WidgetUpdateEngine _widgetUpdateEngine =
+  late final WidgetUpdateEngine _widgetUpdateEngine = 
       WidgetUpdateEngine(_goalRepository, _widgetSnapshotService);
 
   GoalRepository get goalRepository => _goalRepository;

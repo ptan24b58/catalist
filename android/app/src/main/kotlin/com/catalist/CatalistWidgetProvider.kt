@@ -6,6 +6,7 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import android.widget.RemoteViews
 import java.util.Calendar
 
@@ -19,8 +20,6 @@ class CatalistWidgetProvider : AppWidgetProvider() {
         for (appWidgetId in appWidgetIds) {
             updateAppWidget(context, appWidgetManager, appWidgetId)
             scheduleStateTransitions(context, appWidgetId)
-            // Trigger snapshot regeneration for dynamic hourly updates
-            triggerSnapshotRegeneration(context)
         }
     }
 
@@ -37,7 +36,7 @@ class CatalistWidgetProvider : AppWidgetProvider() {
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
-        
+
         if (intent.action == AppWidgetManager.ACTION_APPWIDGET_UPDATE) {
             val appWidgetManager = AppWidgetManager.getInstance(context)
             val appWidgetIds = appWidgetManager.getAppWidgetIds(
@@ -48,48 +47,61 @@ class CatalistWidgetProvider : AppWidgetProvider() {
     }
 
     companion object {
+        private const val TAG = "CatalistWidget"
+
         // Long-term focus hours (must match Flutter's AppConstants.longTermFocusHours)
         private val LONG_TERM_FOCUS_HOURS = listOf(14, 20)
+
+        // Snapshot staleness threshold (seconds). Beyond this, regenerate natively.
+        private const val STALE_THRESHOLD_SEC = 2100L // 35 minutes
 
         fun updateAppWidget(
             context: Context,
             appWidgetManager: AppWidgetManager,
-            appWidgetId: Int
+            appWidgetId: Int,
+            forceRefresh: Boolean = false
         ) {
-            val snapshot = loadSnapshot(context)
+            var snapshot = loadSnapshot(context)
             val views = RemoteViews(context.packageName, R.layout.catalist_widget_layout)
             val now = System.currentTimeMillis()
             val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
 
-            // Check if snapshot is stale (older than 35 min)
+            // Check if snapshot is stale (older than 35 min) or missing
             val snapshotAge = if (snapshot != null) now / 1000 - snapshot.generatedAt else Long.MAX_VALUE
-            val isStale = snapshotAge > 2100 // 35 minutes in seconds
+            val isStale = snapshotAge > STALE_THRESHOLD_SEC
+
+            // If stale, missing, or force-refreshed (goal changed), regenerate natively
+            if (isStale || forceRefresh) {
+                Log.d(TAG, "Snapshot stale (${snapshotAge}s old), generating natively")
+                val fresh = NativeSnapshotGenerator.generate(context)
+                if (fresh != null) {
+                    snapshot = fresh
+                }
+            }
 
             val rawStatus = snapshot?.backgroundStatus?.takeIf { it.isNotBlank() } ?: "on_track"
             val status = resolveCelebrateExpiry(rawStatus, snapshot?.mascot)
 
-            // Determine time-aware status when stale
-            val effectiveStatus = if (isStale) statusFromTime(hour) else status
+            // If celebrate just expired, regenerate to get proper post-celebrate state
+            val celebrateExpired = status != rawStatus
+            if (celebrateExpired) {
+                Log.d(TAG, "Celebrate expired, regenerating natively")
+                val fresh = NativeSnapshotGenerator.generate(context)
+                if (fresh != null) {
+                    snapshot = fresh
+                }
+            }
 
+            val effectiveStatus = snapshot?.backgroundStatus?.takeIf { it.isNotBlank() } ?: "on_track"
             val timeBand = snapshot?.backgroundTimeBand?.takeIf { it.isNotBlank() } ?: timeBandFromSystem()
             val variant = snapshot?.backgroundVariant?.takeIf { it in 1..3 } ?: 1
             val bgResId = resolveBackgroundDrawable(context, effectiveStatus, timeBand, variant)
             views.setInt(R.id.widget_container, "setBackgroundResource", bgResId)
 
-            scheduleCelebrateExpiryIfNeeded(context, appWidgetId, rawStatus, snapshot?.mascot)
+            scheduleCelebrateExpiryIfNeeded(context, appWidgetId, effectiveStatus, snapshot?.mascot)
 
-            // If celebration just expired or snapshot is stale, trigger regeneration
-            val celebrateExpired = status != rawStatus
-            if (celebrateExpired || isStale) {
-                triggerSnapshotRegeneration(context, forceRegenerate = true)
-            }
-
-            // Determine CTA: use time-aware CTA when stale, otherwise use snapshot
-            val ctaText = if (isStale || snapshot?.cta == null) {
-                ctaFromTime(hour, snapshot?.topGoal != null)
-            } else {
-                snapshot.cta
-            }
+            // CTA from snapshot (always fresh now since we regenerate natively)
+            val ctaText = snapshot?.cta ?: ctaFromTime(hour, snapshot?.topGoal != null)
 
             if (snapshot != null && snapshot.topGoal != null) {
                 val goal = snapshot.topGoal!!
@@ -158,32 +170,6 @@ class CatalistWidgetProvider : AppWidgetProvider() {
             alarmManager.set(AlarmManager.RTC, mascot.expiresAt!!, pending)
         }
 
-        /** Trigger snapshot regeneration via MainActivity (for 30‑min updates to feel dynamic). */
-        private fun triggerSnapshotRegeneration(context: Context, forceRegenerate: Boolean = false) {
-            // Check if snapshot is stale (older than 25 minutes) before regenerating
-            val snapshot = loadSnapshot(context)
-            val now = System.currentTimeMillis() / 1000 // generatedAt is in seconds
-            val snapshotAge = if (snapshot != null) {
-                now - snapshot.generatedAt
-            } else {
-                Long.MAX_VALUE // No snapshot, definitely regenerate
-            }
-
-            // Regenerate if forced (e.g., celebration expired) or snapshot is older than 25 min
-            if (forceRegenerate || snapshotAge > 1500) {
-                val intent = Intent(context, MainActivity::class.java).apply {
-                    action = "com.catalist.REGENERATE_SNAPSHOT"
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                }
-                try {
-                    context.startActivity(intent)
-                } catch (e: Exception) {
-                    // If app isn't running, this will fail silently - that's okay
-                    // The 30‑min refresh will still update the widget with existing snapshot
-                }
-            }
-        }
-
         /** State transition hours: end-of-day (5, 23) and long-term focus (14, 15, 20, 21) */
         private val STATE_TRANSITION_HOURS = listOf(5, 14, 15, 20, 21, 23)
 
@@ -240,16 +226,7 @@ class CatalistWidgetProvider : AppWidgetProvider() {
             return if (resId != 0) resId else R.drawable.widget_bg_on_track_day
         }
 
-        /** Determine widget status from current hour (for stale snapshots) */
-        private fun statusFromTime(hour: Int): String {
-            return when {
-                hour >= 23 || hour < 5 -> "end_of_day"
-                hour in LONG_TERM_FOCUS_HOURS -> "on_track"
-                else -> "on_track"
-            }
-        }
-
-        /** Generate time-aware CTA when snapshot is stale */
+        /** Generate time-aware CTA when snapshot has no CTA (fallback only) */
         private fun ctaFromTime(hour: Int, hasGoal: Boolean): String {
             return when {
                 hour >= 23 || hour < 5 -> "Time to rest, Vivian"

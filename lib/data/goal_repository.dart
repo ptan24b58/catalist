@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../domain/goal.dart';
+import '../services/widget_updater.dart';
 import '../utils/logger.dart';
 import '../utils/constants.dart';
 import '../utils/date_utils.dart';
@@ -8,7 +9,7 @@ import '../utils/id_generator.dart';
 import '../utils/validation.dart';
 import '../utils/gamification.dart';
 
-/// Callback type for goal change events
+/// Callback signature for goal change events
 typedef GoalChangeCallback = Future<void> Function({
   required String event,
   required Goal? goal,
@@ -20,42 +21,29 @@ typedef GoalChangeCallback = Future<void> Function({
 class GoalRepository {
   static const String _goalsKey = 'goals';
   static const String _lifetimeXpKey = 'lifetime_earned_xp';
-  GoalChangeCallback? _onGoalChanged;
 
-  /// Register a callback to be notified when goals change
-  void setChangeListener(GoalChangeCallback? callback) {
-    _onGoalChanged = callback;
+  GoalChangeCallback? _changeListener;
+
+  /// Set a listener to be notified when goals change
+  void setChangeListener(GoalChangeCallback? listener) {
+    _changeListener = listener;
   }
 
-  /// Notify listeners of a goal change
+  /// Notify listener of a goal change
   Future<void> _notifyChange({
     required String event,
-    required Goal? goal,
-    required String? goalId,
-    required bool isCelebration,
+    Goal? goal,
+    String? goalId,
+    bool isCelebration = false,
   }) async {
-    if (_onGoalChanged != null) {
-      try {
-        await _onGoalChanged!(
-          event: event,
-          goal: goal,
-          goalId: goalId,
-          isCelebration: isCelebration,
-        );
-      } catch (e, stackTrace) {
-        AppLogger.error('Error in goal change callback', e, stackTrace);
-      }
+    if (_changeListener != null) {
+      await _changeListener!(
+        event: event,
+        goal: goal,
+        goalId: goalId,
+        isCelebration: isCelebration,
+      );
     }
-  }
-
-  /// Helper to notify progress logged with completion check
-  Future<void> _notifyProgressLogged(Goal goal, bool isCompleted) async {
-    await _notifyChange(
-      event: 'progress_logged',
-      goal: goal,
-      goalId: goal.id,
-      isCelebration: isCompleted,
-    );
   }
 
   /// Get all goals
@@ -118,24 +106,15 @@ class GoalRepository {
   Future<void> saveGoal(Goal goal) async {
     try {
       final goals = await getAllGoals();
-      final index = goals.indexWhere((g) => g.id == goal.id);
-      final isNew = index < 0;
+    final index = goals.indexWhere((g) => g.id == goal.id);
 
-      if (index >= 0) {
-        goals[index] = goal;
-      } else {
-        goals.add(goal);
-      }
+    if (index >= 0) {
+      goals[index] = goal;
+    } else {
+      goals.add(goal);
+    }
 
       await _saveAllGoals(goals);
-
-      // Notify listeners
-      await _notifyChange(
-        event: isNew ? 'goal_added' : 'goal_updated',
-        goal: goal,
-        goalId: goal.id,
-        isCelebration: false,
-      );
     } catch (e, stackTrace) {
       AppLogger.error(AppConstants.errorSaveFailed, e, stackTrace);
       rethrow;
@@ -151,14 +130,6 @@ class GoalRepository {
       final goals = await getAllGoals();
       goals.removeWhere((g) => g.id == id);
       await _saveAllGoals(goals);
-
-      // Notify listeners
-      await _notifyChange(
-        event: 'goal_deleted',
-        goal: null,
-        goalId: id,
-        isCelebration: false,
-      );
     } catch (e, stackTrace) {
       AppLogger.error('Failed to delete goal', e, stackTrace);
       rethrow;
@@ -255,14 +226,6 @@ class GoalRepository {
     await addLifetimeXp(Gamification.xpPerDailyCompletion);
     await saveGoal(updatedGoal);
 
-    // Notify listeners of progress logged
-    await _notifyChange(
-      event: 'progress_logged',
-      goal: updatedGoal,
-      goalId: updatedGoal.id,
-      isCelebration: true,
-    );
-
     return updatedGoal;
   }
 
@@ -289,7 +252,6 @@ class GoalRepository {
         lastCompletedAt: completedAt,
       );
       await saveGoal(updatedGoal);
-      await _notifyProgressLogged(updatedGoal, justCompleted);
       return updatedGoal;
     }
   }
@@ -311,7 +273,6 @@ class GoalRepository {
     );
 
     await saveGoal(updatedGoal);
-    await _notifyProgressLogged(updatedGoal, justCompleted);
     return updatedGoal;
   }
 
@@ -333,7 +294,6 @@ class GoalRepository {
     );
 
     await saveGoal(updatedGoal);
-    await _notifyProgressLogged(updatedGoal, justCompleted);
     return updatedGoal;
   }
 
@@ -368,7 +328,6 @@ class GoalRepository {
       await addLifetimeXp(Gamification.xpPerGoalCompleted);
     }
     await saveGoal(updatedGoal);
-    await _notifyProgressLogged(updatedGoal, justCompleted);
     return updatedGoal;
   }
 
@@ -418,15 +377,6 @@ class GoalRepository {
     final updatedGoal = goal.copyWith(milestones: updatedMilestones);
 
     await saveGoal(updatedGoal);
-
-    // Notify listeners
-    await _notifyChange(
-      event: 'goal_updated',
-      goal: updatedGoal,
-      goalId: updatedGoal.id,
-      isCelebration: false,
-    );
-
     return updatedGoal;
   }
 
@@ -472,7 +422,6 @@ class GoalRepository {
       await addLifetimeXp(Gamification.xpPerGoalCompleted);
     }
     await saveGoal(updatedGoal);
-    await _notifyProgressLogged(updatedGoal, true);
     return updatedGoal;
   }
 
@@ -502,11 +451,20 @@ class GoalRepository {
     return 1;
   }
 
-  Future<void> _saveAllGoals(List<Goal> goals) async {
+  Future<void> _saveAllGoals(List<Goal> goals, {Goal? changedGoal, String event = 'save', bool isCelebration = false}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final encoded = jsonEncode(goals.map((g) => g.toJson()).toList());
       await prefs.setString(_goalsKey, encoded);
+      // Trigger native widget refresh so CTA reflects the new state
+      WidgetUpdater.update();
+      // Notify change listener
+      await _notifyChange(
+        event: event,
+        goal: changedGoal,
+        goalId: changedGoal?.id,
+        isCelebration: isCelebration,
+      );
     } catch (e, stackTrace) {
       AppLogger.error('Failed to save goals to storage', e, stackTrace);
       rethrow;

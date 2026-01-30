@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'screens/goals_list_screen.dart';
-import 'services/service_locator.dart';
 import 'services/widget_action_handler.dart';
 import 'utils/app_colors.dart';
 import 'utils/logger.dart';
@@ -15,26 +13,6 @@ const _textSecondary = TextStyle(color: AppColors.textSecondary);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Initialize services early to ensure WidgetUpdateEngine is registered
-  try {
-    final _ = widgetUpdateEngine; // Trigger initialization
-  } catch (e, stackTrace) {
-    AppLogger.error('Error initializing WidgetUpdateEngine', e, stackTrace);
-  }
-
-  // Set up method channel handler for native calls
-  const methodChannel = MethodChannel('com.catalist/widget');
-  methodChannel.setMethodCallHandler((call) async {
-    if (call.method == 'regenerateSnapshot') {
-      try {
-        await widgetUpdateEngine.regenerateSnapshot();
-      } catch (e, stackTrace) {
-        AppLogger.error('Error regenerating snapshot from native call', e, stackTrace);
-      }
-    }
-    return null;
-  });
 
   // Check for widget actions on app start
   try {

@@ -1,123 +1,116 @@
 import '../domain/goal.dart';
 import '../utils/constants.dart';
-import '../utils/date_utils.dart';
 
-/// Calculates urgency score (0-1) for a goal
+/// Engine for calculating goal urgency scores.
+/// 
+/// Urgency is a 0-1 score where:
+/// - 0.0 = no urgency (on track, plenty of time)
+/// - 0.2 = happy threshold (doing well)
+/// - 0.5 = neutral (needs attention soon)
+/// - 0.8 = worried threshold (falling behind)
+/// - 1.0 = maximum urgency (critical/overdue)
 class UrgencyEngine {
-  /// Calculate urgency based on goal type and progress
+  UrgencyEngine._(); // Static-only class
+
+  /// Calculate urgency score for a goal (0-1)
   static double calculateUrgency(Goal goal, DateTime now) {
-    if (goal.isCompleted) {
-      return 0.0; // Completed goals have no urgency
-    }
+    if (goal.isCompleted) return 0.0;
 
-    if (goal.goalType == GoalType.daily) {
-      return _calculateDailyUrgency(goal, now);
-    } else {
-      return _calculateLongTermUrgency(goal, now);
+    switch (goal.goalType) {
+      case GoalType.daily:
+        return _calculateDailyUrgency(goal, now);
+      case GoalType.longTerm:
+        return _calculateLongTermUrgency(goal, now);
     }
   }
 
-  /// Calculate urgency for daily goals
+  /// Calculate urgency for daily goals based on:
+  /// - Time of day (progress toward end of day)
+  /// - Current progress
+  /// - Streak at risk
   static double _calculateDailyUrgency(Goal goal, DateTime now) {
+    // Time factor: how far through the day (5am to 11pm = active hours)
+    final activeStart = DateTime(now.year, now.month, now.day, AppConstants.endOfDayEndHour);
+    final activeEnd = DateTime(now.year, now.month, now.day, AppConstants.endOfDayStartHour);
+    
+    double timeFactor;
+    if (now.isBefore(activeStart)) {
+      timeFactor = 0.0; // Before 5am, no time pressure
+    } else if (now.isAfter(activeEnd)) {
+      timeFactor = 1.0; // After 11pm, maximum time pressure
+    } else {
+      final elapsed = now.difference(activeStart).inMinutes;
+      final total = activeEnd.difference(activeStart).inMinutes;
+      timeFactor = (elapsed / total).clamp(0.0, 1.0);
+    }
+
+    // Progress factor: inverse of progress (less progress = more urgent)
     final progress = goal.getProgressToday(now);
-    final nextDue = goal.getNextDueTime(now);
+    final progressFactor = 1.0 - progress;
 
-    if (nextDue == null) {
-      return 0.0;
-    }
+    // Streak factor: longer streak = more at risk = higher urgency if not done
+    final streakFactor = goal.currentStreak > 0 && !goal.isCompleted
+        ? (goal.currentStreak / 30).clamp(0.0, 0.5) // Cap at 0.5 for 30+ day streaks
+        : 0.0;
 
-    // Progress component (0-0.5 weight)
-    double progressScore = 0.0;
-    if (goal.progressType == ProgressType.completion) {
-      progressScore = (progress < 1.0) ? AppConstants.progressWeight : 0.0;
-    } else if (goal.progressType == ProgressType.numeric) {
-      // Numeric: how far behind daily target?
-      final target = goal.dailyTarget;
-      final progressRatio = progress / target;
-      progressScore = (1.0 - progressRatio.clamp(0.0, 1.0)) * AppConstants.progressWeight;
-    }
-
-    // Time component (0-0.4 weight)
-    final timeRemaining = nextDue.difference(now);
-    final totalTimeWindow = _getDailyTimeWindow(now);
-    double timeScore = 0.0;
-    if (totalTimeWindow > Duration.zero) {
-      final timeRatio = timeRemaining.inSeconds / totalTimeWindow.inSeconds;
-      timeScore = (1.0 - timeRatio.clamp(0.0, 1.0)) * AppConstants.timeWeight;
-    }
-
-    // Streak risk component (0-0.1 weight)
-    double streakScore = 0.0;
-    if (goal.currentStreak > 0) {
-      final yesterday = DateUtils.getYesterday(now);
-      final lastCompleted = goal.lastCompletedAt;
-      if (lastCompleted == null ||
-          DateUtils.normalizeToDay(lastCompleted).isBefore(yesterday)) {
-        streakScore = AppConstants.streakWeight;
-      }
-    }
-
-    return (progressScore + timeScore + streakScore).clamp(0.0, 1.0);
+    // Weighted combination
+    return (
+      AppConstants.progressWeight * progressFactor +
+      AppConstants.timeWeight * timeFactor +
+      AppConstants.streakWeight * streakFactor
+    ).clamp(0.0, 1.0);
   }
 
-  /// Calculate urgency for long-term goals based on deadline and progress
+  /// Calculate urgency for long-term goals based on:
+  /// - Time remaining until deadline
+  /// - Current progress
   static double _calculateLongTermUrgency(Goal goal, DateTime now) {
     final progress = goal.getProgress();
-    final deadline = goal.deadline;
 
-    // No deadline = lower urgency, just based on progress stagnation
-    if (deadline == null) {
-      // Simple: urgency is inverse of progress (less done = more urgent)
-      // But cap at 0.5 since no deadline means less pressure
-      return ((1.0 - progress) * 0.5).clamp(0.0, 0.5);
+    // No deadline: urgency based purely on progress (low urgency)
+    if (goal.deadline == null) {
+      // Goals without deadline have low base urgency
+      return ((1.0 - progress) * 0.3).clamp(0.0, 0.3);
     }
 
-    // Check if overdue
+    // Overdue: maximum urgency
     if (goal.isOverdue(now)) {
-      return 1.0; // Maximum urgency for overdue goals
-    }
-
-    // Deadline-based urgency calculation
-    final daysRemaining = goal.getDaysRemaining(now) ?? 0;
-    final totalDays = deadline.difference(goal.createdAt).inDays;
-
-    // Avoid division by zero
-    if (totalDays <= 0) {
       return 1.0;
     }
 
-    // Calculate expected progress based on time elapsed
-    final daysElapsed = totalDays - daysRemaining;
-    final expectedProgress = daysElapsed / totalDays;
-    final actualProgress = progress;
+    // Calculate deadline factor
+    final totalDuration = goal.deadline!.difference(goal.createdAt).inHours;
+    final remaining = goal.deadline!.difference(now).inHours;
+    
+    double deadlineFactor;
+    if (totalDuration <= 0) {
+      deadlineFactor = 1.0;
+    } else {
+      // Time elapsed as a fraction
+      final elapsed = (totalDuration - remaining) / totalDuration;
+      deadlineFactor = elapsed.clamp(0.0, 1.0);
+    }
 
-    // Progress deficit: how far behind schedule
-    final progressDeficit = (expectedProgress - actualProgress).clamp(0.0, 1.0);
-
-    // Time pressure: urgency increases as deadline approaches
-    final timePressure = 1.0 - (daysRemaining / totalDays).clamp(0.0, 1.0);
+    // Expected progress vs actual progress
+    final expectedProgress = deadlineFactor;
+    final progressGap = (expectedProgress - progress).clamp(0.0, 1.0);
 
     // Weighted combination
-    final deadlineScore = timePressure * AppConstants.deadlineWeight;
-    final progressScore = progressDeficit * AppConstants.longTermProgressWeight;
-
-    return (deadlineScore + progressScore).clamp(0.0, 1.0);
+    return (
+      AppConstants.deadlineWeight * deadlineFactor +
+      AppConstants.longTermProgressWeight * progressGap
+    ).clamp(0.0, 1.0);
   }
 
-  /// Get the time window for daily goals (full day)
-  static Duration _getDailyTimeWindow(DateTime now) =>
-      const Duration(days: 1);
-
-  /// Find the most urgent goal from a list
+  /// Find the most urgent incomplete goal from a list
   static Goal? findMostUrgent(List<Goal> goals, DateTime now) {
-    if (goals.isEmpty) return null;
+    final incompleteGoals = goals.where((g) => !g.isCompleted).toList();
+    if (incompleteGoals.isEmpty) return null;
 
-    Goal? mostUrgent;
-    double highestUrgency = -1;
+    Goal mostUrgent = incompleteGoals.first;
+    double highestUrgency = calculateUrgency(mostUrgent, now);
 
-    for (final goal in goals) {
-      if (goal.isCompleted) continue;
-
+    for (final goal in incompleteGoals.skip(1)) {
       final urgency = calculateUrgency(goal, now);
       if (urgency > highestUrgency) {
         highestUrgency = urgency;
@@ -128,24 +121,11 @@ class UrgencyEngine {
     return mostUrgent;
   }
 
-  /// Get urgency level as a category
-  static UrgencyLevel getUrgencyLevel(double urgency) {
-    if (urgency < AppConstants.urgencyHappy) {
-      return UrgencyLevel.low;
-    } else if (urgency < AppConstants.urgencyNeutral) {
-      return UrgencyLevel.medium;
-    } else if (urgency < AppConstants.urgencyWorried) {
-      return UrgencyLevel.high;
-    } else {
-      return UrgencyLevel.critical;
-    }
+  /// Get urgency level as a string for display
+  static String getUrgencyLevel(double urgency) {
+    if (urgency >= AppConstants.urgencyWorried) return 'high';
+    if (urgency >= AppConstants.urgencyNeutral) return 'medium';
+    if (urgency >= AppConstants.urgencyHappy) return 'low';
+    return 'none';
   }
-}
-
-/// Urgency levels for UI display
-enum UrgencyLevel {
-  low,      // < 0.2 - On track
-  medium,   // 0.2-0.5 - Normal
-  high,     // 0.5-0.8 - Behind
-  critical, // > 0.8 - Urgent/overdue
 }

@@ -1,4 +1,6 @@
-/// Mascot emotional state
+import '../utils/constants.dart';
+
+/// Mascot emotional states
 enum MascotEmotion {
   happy,
   neutral,
@@ -7,43 +9,36 @@ enum MascotEmotion {
   celebrate,
 }
 
-/// Mascot state model - finite state machine
+/// Represents the current state of the mascot
 class MascotState {
   final MascotEmotion emotion;
-  final int frameIndex;
-  final DateTime? expiresAt; // For temporary states like celebrate
+  final DateTime? expiresAt;
 
   const MascotState({
     required this.emotion,
-    this.frameIndex = 0,
     this.expiresAt,
   });
 
-  /// Check if this state has expired and should revert
+  /// Create a celebration state that expires after 5 minutes
+  factory MascotState.celebrate(DateTime now) {
+    return MascotState(
+      emotion: MascotEmotion.celebrate,
+      expiresAt: now.add(AppConstants.celebrateDuration),
+    );
+  }
+
+  /// Check if the current emotion has expired
   bool isExpired(DateTime now) {
     if (expiresAt == null) return false;
     return now.isAfter(expiresAt!);
   }
 
-  /// Get the current valid state (reverting if expired)
-  MascotState resolve(DateTime now, MascotEmotion defaultEmotion) {
-    if (isExpired(now)) {
-      return MascotState(
-        emotion: defaultEmotion,
-        frameIndex: 0,
-      );
-    }
-    return this;
-  }
-
   MascotState copyWith({
     MascotEmotion? emotion,
-    int? frameIndex,
     DateTime? expiresAt,
   }) {
     return MascotState(
       emotion: emotion ?? this.emotion,
-      frameIndex: frameIndex ?? this.frameIndex,
       expiresAt: expiresAt ?? this.expiresAt,
     );
   }
@@ -51,8 +46,7 @@ class MascotState {
   Map<String, dynamic> toJson() {
     return {
       'emotion': emotion.name,
-      'frameIndex': frameIndex,
-      'expiresAt': expiresAt?.millisecondsSinceEpoch,
+      'expiresAt': expiresAt?.toIso8601String(),
     };
   }
 
@@ -62,10 +56,20 @@ class MascotState {
         (e) => e.name == json['emotion'],
         orElse: () => MascotEmotion.neutral,
       ),
-      frameIndex: json['frameIndex'] as int? ?? 0,
       expiresAt: json['expiresAt'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(json['expiresAt'] as int)
+          ? DateTime.parse(json['expiresAt'] as String)
           : null,
     );
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is MascotState &&
+        other.emotion == emotion &&
+        other.expiresAt == expiresAt;
+  }
+
+  @override
+  int get hashCode => emotion.hashCode ^ expiresAt.hashCode;
 }

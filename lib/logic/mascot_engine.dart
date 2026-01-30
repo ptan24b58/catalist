@@ -1,56 +1,70 @@
 import '../domain/goal.dart';
 import '../domain/mascot_state.dart';
-import 'urgency_engine.dart';
 import '../utils/constants.dart';
+import 'urgency_engine.dart';
 
-/// Maps urgency and context to mascot emotion
+/// Engine for determining mascot emotional state based on goal progress
 class MascotEngine {
-  /// Determine mascot emotion from urgency score
-  static MascotEmotion emotionFromUrgency(double urgency) {
-    if (urgency < AppConstants.urgencyHappy) {
-      return MascotEmotion.happy; // Ahead of schedule
-    } else if (urgency < AppConstants.urgencyNeutral) {
-      return MascotEmotion.neutral; // On track
-    } else if (urgency < AppConstants.urgencyWorried) {
-      return MascotEmotion.worried; // Behind schedule
-    } else {
-      return MascotEmotion.sad; // Missed or critical
-    }
-  }
+  MascotEngine._(); // Static-only class
 
-  /// Compute mascot state for a goal
-  static MascotState computeState(
-    Goal goal,
-    DateTime now,
-    MascotState? currentState,
-  ) {
-    // Check if we should revert from celebrate
-    if (currentState != null) {
-      final resolved = currentState.resolve(now, _getDefaultEmotion(goal, now));
-      if (resolved.emotion != currentState.emotion) return resolved;
-      if (currentState.emotion == MascotEmotion.celebrate) return currentState;
+  /// Compute mascot state based on goal urgency
+  static MascotState computeState(Goal goal, DateTime now, MascotState? currentState) {
+    // If currently celebrating and not expired, continue celebrating
+    if (currentState != null &&
+        currentState.emotion == MascotEmotion.celebrate &&
+        !currentState.isExpired(now)) {
+      return currentState;
     }
 
-    // Compute default emotion from urgency
     final urgency = UrgencyEngine.calculateUrgency(goal, now);
-    final emotion = emotionFromUrgency(urgency);
-    final frameIndex = currentState != null ? ((currentState.frameIndex + 1) % 2) : 0;
+    final emotion = _emotionFromUrgency(urgency, goal.isCompleted);
 
-    return MascotState(emotion: emotion, frameIndex: frameIndex);
+    return MascotState(emotion: emotion);
   }
 
-  /// Create celebrate state (triggered after logging progress)
+  /// Create a celebration state (e.g., when goal is completed)
   static MascotState createCelebrateState(DateTime now) {
-    return MascotState(
-      emotion: MascotEmotion.celebrate,
-      frameIndex: 0,
-      expiresAt: now.add(AppConstants.celebrateDuration),
-    );
+    return MascotState.celebrate(now);
   }
 
-  /// Get default emotion for a goal (without celebrate)
-  static MascotEmotion _getDefaultEmotion(Goal goal, DateTime now) {
-    final urgency = UrgencyEngine.calculateUrgency(goal, now);
-    return emotionFromUrgency(urgency);
+  /// Determine emotion based on urgency score
+  static MascotEmotion _emotionFromUrgency(double urgency, bool isCompleted) {
+    if (isCompleted) return MascotEmotion.happy;
+    
+    if (urgency >= AppConstants.urgencyWorried) {
+      return MascotEmotion.worried;
+    } else if (urgency >= AppConstants.urgencyNeutral) {
+      return MascotEmotion.neutral;
+    } else {
+      return MascotEmotion.happy;
+    }
+  }
+
+  /// Get emotion for overall state (multiple goals)
+  static MascotState computeOverallState(List<Goal> goals, DateTime now, MascotState? currentState) {
+    // If currently celebrating and not expired, continue celebrating
+    if (currentState != null &&
+        currentState.emotion == MascotEmotion.celebrate &&
+        !currentState.isExpired(now)) {
+      return currentState;
+    }
+
+    if (goals.isEmpty) {
+      return const MascotState(emotion: MascotEmotion.neutral);
+    }
+
+    // Find the most urgent goal and base emotion on that
+    final mostUrgent = UrgencyEngine.findMostUrgent(goals, now);
+    if (mostUrgent == null) {
+      // All goals completed
+      return const MascotState(emotion: MascotEmotion.happy);
+    }
+
+    return computeState(mostUrgent, now, currentState);
+  }
+
+  /// Get display message for emotion
+  static String getEmotionMessage(MascotEmotion emotion) {
+    return AppConstants.getEmotionMessage(emotion.name);
   }
 }

@@ -1,9 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../utils/logger.dart';
-
-import '../logic/widget_update_engine.dart';
-import '../services/service_locator.dart';
+import 'service_locator.dart';
 
 /// Service to notify native widgets to update
 class WidgetNotifier {
