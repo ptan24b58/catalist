@@ -9,7 +9,7 @@ import '../widgets/gamification/streak_badge.dart';
 import '../widgets/gamification/crown_icon.dart';
 import '../widgets/gamification/xp_burst.dart';
 import '../widgets/celebration_overlay.dart';
-import 'accomplishment_capture_screen.dart';
+import 'memory_capture_screen.dart';
 
 class GoalDetailScreen extends StatefulWidget {
   final Goal goal;
@@ -86,7 +86,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
         final result = await Navigator.push<Map<String, dynamic>>(
           context,
           MaterialPageRoute(
-            builder: (context) => AccomplishmentCaptureScreen(goal: _goal),
+            builder: (context) => MemoryCaptureScreen(goal: _goal),
           ),
         );
         
@@ -121,7 +121,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
         final result = await Navigator.push<Map<String, dynamic>>(
           context,
           MaterialPageRoute(
-            builder: (context) => AccomplishmentCaptureScreen(goal: _goal),
+            builder: (context) => MemoryCaptureScreen(goal: _goal),
           ),
         );
         
@@ -152,7 +152,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
         final result = await Navigator.push<Map<String, dynamic>>(
           context,
           MaterialPageRoute(
-            builder: (context) => AccomplishmentCaptureScreen(goal: _goal),
+            builder: (context) => MemoryCaptureScreen(goal: _goal),
           ),
         );
         
@@ -438,7 +438,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     final result = await Navigator.push<Map<String, dynamic>>(
       context,
       MaterialPageRoute(
-        builder: (context) => AccomplishmentCaptureScreen(goal: _goal),
+        builder: (context) => MemoryCaptureScreen(goal: _goal),
       ),
     );
     

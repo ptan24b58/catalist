@@ -46,27 +46,27 @@ class GoalImageService {
     }
   }
 
-  /// Save completion image permanently to app storage
-  Future<String?> saveCompletionImage(String goalId, File image) async {
+  /// Save image permanently to app storage for any entity (goal, memory, etc.)
+  Future<String?> saveImage(String entityId, File image) async {
     try {
       final appDir = await getApplicationDocumentsDirectory();
       final imagesDir = Directory('${appDir.path}/goal_images');
-      
+
       if (!await imagesDir.exists()) {
         await imagesDir.create(recursive: true);
       }
 
-      final ext = p.extension(image.path).isNotEmpty 
-          ? p.extension(image.path) 
+      final ext = p.extension(image.path).isNotEmpty
+          ? p.extension(image.path)
           : '.jpg';
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final savedPath = '${imagesDir.path}/${goalId}_$timestamp$ext';
-      
+      final savedPath = '${imagesDir.path}/${entityId}_$timestamp$ext';
+
       await image.copy(savedPath);
-      AppLogger.info('Saved completion image to: $savedPath');
+      AppLogger.info('Saved image to: $savedPath');
       return savedPath;
     } catch (e, stackTrace) {
-      AppLogger.error('Failed to save completion image', e, stackTrace);
+      AppLogger.error('Failed to save image', e, stackTrace);
       return null;
     }
   }

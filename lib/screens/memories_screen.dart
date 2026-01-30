@@ -1,46 +1,64 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../domain/goal.dart';
+import '../domain/memory.dart';
 import '../services/service_locator.dart';
 import '../utils/app_colors.dart';
+import 'memory_capture_screen.dart';
 
-/// Gallery screen showing all completed long-term goals with their memories
-class AccomplishmentsGalleryScreen extends StatefulWidget {
-  const AccomplishmentsGalleryScreen({super.key});
+/// Gallery screen showing all memories - both goal completions and standalone
+class MemoriesScreen extends StatefulWidget {
+  const MemoriesScreen({super.key});
 
   @override
-  State<AccomplishmentsGalleryScreen> createState() =>
-      _AccomplishmentsGalleryScreenState();
+  State<MemoriesScreen> createState() => _MemoriesScreenState();
 }
 
-class _AccomplishmentsGalleryScreenState
-    extends State<AccomplishmentsGalleryScreen> {
-  List<Goal> _completedGoals = [];
+class _MemoriesScreenState extends State<MemoriesScreen> {
+  List<Memory> _memories = [];
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadCompletedGoals();
+    _loadMemories();
   }
 
-  Future<void> _loadCompletedGoals() async {
-    final goals = await goalRepository.getLongTermGoals();
-    final completed = goals.where((g) => g.isCompleted).toList();
-    
-    // Sort by completion date (most recent first)
-    completed.sort((a, b) {
-      final aDate = a.lastCompletedAt ?? a.createdAt;
-      final bDate = b.lastCompletedAt ?? b.createdAt;
-      return bDate.compareTo(aDate);
-    });
+  Future<void> _loadMemories() async {
+    final memories = await memoryRepository.getAllMemories();
+
+    // Sort by eventDate desc
+    memories.sort((a, b) => b.eventDate.compareTo(a.eventDate));
 
     if (mounted) {
       setState(() {
-        _completedGoals = completed;
+        _memories = memories;
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _addStandaloneMemory() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const MemoryCaptureScreen(),
+      ),
+    );
+    if (result == true) {
+      _loadMemories();
+    }
+  }
+
+  Future<void> _editMemory(Memory memory) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MemoryCaptureScreen(existingMemory: memory),
+      ),
+    );
+    if (result == true) {
+      _loadMemories();
     }
   }
 
@@ -51,7 +69,7 @@ class _AccomplishmentsGalleryScreenState
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
-        title: const Text('Accomplishments'),
+        title: const Text('Memories'),
         centerTitle: true,
         elevation: 0,
         backgroundColor: Colors.transparent,
@@ -59,9 +77,13 @@ class _AccomplishmentsGalleryScreenState
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _completedGoals.isEmpty
+          : _memories.isEmpty
               ? _buildEmptyState(theme)
               : _buildGallery(theme),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _addStandaloneMemory,
+        child: const Icon(Icons.add),
+      ),
     );
   }
 
@@ -73,13 +95,13 @@ class _AccomplishmentsGalleryScreenState
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.emoji_events_outlined,
+              Icons.photo_album_outlined,
               size: 80,
               color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
             ),
             const SizedBox(height: 24),
             Text(
-              'No Accomplishments Yet',
+              'No Memories Yet',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
@@ -88,7 +110,7 @@ class _AccomplishmentsGalleryScreenState
             ),
             const SizedBox(height: 12),
             Text(
-              'Complete your long-term goals to see them here. Each achievement is a memory worth celebrating!',
+              'Capture moments from your goals, travels, and life events. Tap + to add your first memory!',
               style: TextStyle(
                 fontSize: 14,
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
@@ -109,14 +131,14 @@ class _AccomplishmentsGalleryScreenState
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
             child: Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.auto_awesome,
                   size: 20,
                   color: AppColors.xpGreen,
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  '${_completedGoals.length} ${_completedGoals.length == 1 ? 'Goal' : 'Goals'} Achieved',
+                  '${_memories.length} ${_memories.length == 1 ? 'Memory' : 'Memories'}',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -132,13 +154,16 @@ class _AccomplishmentsGalleryScreenState
           sliver: SliverList(
             delegate: SliverChildBuilderDelegate(
               (context, index) {
-                final goal = _completedGoals[index];
+                final memory = _memories[index];
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 16),
-                  child: _AccomplishmentCard(goal: goal),
+                  child: _MemoryCard(
+                    memory: memory,
+                    onEdit: () => _editMemory(memory),
+                  ),
                 );
               },
-              childCount: _completedGoals.length,
+              childCount: _memories.length,
             ),
           ),
         ),
@@ -147,19 +172,23 @@ class _AccomplishmentsGalleryScreenState
   }
 }
 
-class _AccomplishmentCard extends StatelessWidget {
-  final Goal goal;
+class _MemoryCard extends StatelessWidget {
+  final Memory memory;
+  final VoidCallback onEdit;
 
-  const _AccomplishmentCard({required this.goal});
+  const _MemoryCard({required this.memory, required this.onEdit});
+
+  bool _imageFileExists() {
+    if (memory.imagePath == null || memory.imagePath!.isEmpty) return false;
+    return File(memory.imagePath!).existsSync();
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final hasImage = goal.completionImagePath != null &&
-        goal.completionImagePath!.isNotEmpty;
-    final hasMemo =
-        goal.completionMemo != null && goal.completionMemo!.isNotEmpty;
-    final completedAt = goal.lastCompletedAt ?? goal.createdAt;
+    final hasImage = memory.imagePath != null && memory.imagePath!.isNotEmpty;
+    final imageExists = _imageFileExists();
+    final hasMemo = memory.memo != null && memory.memo!.isNotEmpty;
     final dateFormat = DateFormat('MMM d, yyyy');
 
     return GestureDetector(
@@ -186,18 +215,14 @@ class _AccomplishmentCard extends StatelessWidget {
                     const BorderRadius.vertical(top: Radius.circular(24)),
                 child: AspectRatio(
                   aspectRatio: 16 / 9,
-                  child: Image.file(
-                    File(goal.completionImagePath!),
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      color: theme.colorScheme.surfaceContainerHighest,
-                      child: Icon(
-                        Icons.broken_image_outlined,
-                        size: 48,
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
-                      ),
-                    ),
-                  ),
+                  child: imageExists
+                      ? Image.file(
+                          File(memory.imagePath!),
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              _buildImagePlaceholder(theme),
+                        )
+                      : _buildImagePlaceholder(theme),
                 ),
               ),
 
@@ -207,19 +232,28 @@ class _AccomplishmentCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Title and trophy
+                  // Title and badge
                   Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppColors.xpGreen.withValues(alpha: 0.1),
+                          color: memory.isGoalLinked
+                              ? AppColors.xpGreen.withValues(alpha: 0.1)
+                              : Theme.of(context)
+                                  .colorScheme
+                                  .primary
+                                  .withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(
-                          Icons.emoji_events_rounded,
+                        child: Icon(
+                          memory.isGoalLinked
+                              ? Icons.emoji_events_rounded
+                              : Icons.bookmark_rounded,
                           size: 20,
-                          color: AppColors.xpGreen,
+                          color: memory.isGoalLinked
+                              ? AppColors.xpGreen
+                              : theme.colorScheme.primary,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -228,7 +262,7 @@ class _AccomplishmentCard extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              goal.title,
+                              memory.title,
                               style: const TextStyle(
                                 fontSize: 17,
                                 fontWeight: FontWeight.w600,
@@ -238,7 +272,7 @@ class _AccomplishmentCard extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Completed ${dateFormat.format(completedAt)}',
+                              dateFormat.format(memory.eventDate),
                               style: TextStyle(
                                 fontSize: 12,
                                 color: theme.colorScheme.onSurface
@@ -273,7 +307,7 @@ class _AccomplishmentCard extends StatelessWidget {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              goal.completionMemo!,
+                              memory.memo!,
                               style: TextStyle(
                                 fontSize: 13,
                                 fontStyle: FontStyle.italic,
@@ -293,7 +327,7 @@ class _AccomplishmentCard extends StatelessWidget {
                   if (!hasImage && !hasMemo) ...[
                     const SizedBox(height: 8),
                     Text(
-                      'Tap to add a memory',
+                      'Tap to view details',
                       style: TextStyle(
                         fontSize: 12,
                         color: theme.colorScheme.primary,
@@ -309,13 +343,35 @@ class _AccomplishmentCard extends StatelessWidget {
     );
   }
 
+  Widget _buildImagePlaceholder(ThemeData theme) {
+    return Container(
+      color: theme.colorScheme.surfaceContainerHighest,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.broken_image_outlined,
+            size: 48,
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Photo unavailable',
+            style: TextStyle(
+              fontSize: 12,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showDetailSheet(BuildContext context) {
     final theme = Theme.of(context);
-    final hasImage = goal.completionImagePath != null &&
-        goal.completionImagePath!.isNotEmpty;
-    final hasMemo =
-        goal.completionMemo != null && goal.completionMemo!.isNotEmpty;
-    final completedAt = goal.lastCompletedAt ?? goal.createdAt;
+    final hasImage = memory.imagePath != null && memory.imagePath!.isNotEmpty;
+    final imageExists = _imageFileExists();
+    final hasMemo = memory.memo != null && memory.memo!.isNotEmpty;
     final dateFormat = DateFormat('MMMM d, yyyy');
 
     showModalBottomSheet(
@@ -358,21 +414,68 @@ class _AccomplishmentCard extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(16),
-                            child: Image.file(
-                              File(goal.completionImagePath!),
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  Container(
-                                height: 200,
-                                color: theme.colorScheme.surfaceContainerHighest,
-                                child: Icon(
-                                  Icons.broken_image_outlined,
-                                  size: 48,
-                                  color: theme.colorScheme.onSurface
-                                      .withValues(alpha: 0.3),
-                                ),
-                              ),
-                            ),
+                            child: imageExists
+                                ? Image.file(
+                                    File(memory.imagePath!),
+                                    fit: BoxFit.cover,
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            Container(
+                                      height: 200,
+                                      color: theme
+                                          .colorScheme.surfaceContainerHighest,
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.broken_image_outlined,
+                                            size: 48,
+                                            color: theme
+                                                .colorScheme.onSurface
+                                                .withValues(alpha: 0.3),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            'Photo unavailable',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: theme
+                                                  .colorScheme.onSurface
+                                                  .withValues(alpha: 0.5),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  )
+                                : Container(
+                                    height: 200,
+                                    color: theme
+                                        .colorScheme.surfaceContainerHighest,
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.broken_image_outlined,
+                                          size: 48,
+                                          color: theme.colorScheme.onSurface
+                                              .withValues(alpha: 0.3),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Photo unavailable',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: theme
+                                                .colorScheme.onSurface
+                                                .withValues(alpha: 0.5),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                           ),
                         ),
 
@@ -387,19 +490,27 @@ class _AccomplishmentCard extends StatelessWidget {
                                 Container(
                                   padding: const EdgeInsets.all(10),
                                   decoration: BoxDecoration(
-                                    color: AppColors.xpGreen.withValues(alpha: 0.1),
+                                    color: memory.isGoalLinked
+                                        ? AppColors.xpGreen
+                                            .withValues(alpha: 0.1)
+                                        : theme.colorScheme.primary
+                                            .withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  child: const Icon(
-                                    Icons.emoji_events_rounded,
+                                  child: Icon(
+                                    memory.isGoalLinked
+                                        ? Icons.emoji_events_rounded
+                                        : Icons.bookmark_rounded,
                                     size: 24,
-                                    color: AppColors.xpGreen,
+                                    color: memory.isGoalLinked
+                                        ? AppColors.xpGreen
+                                        : theme.colorScheme.primary,
                                   ),
                                 ),
                                 const SizedBox(width: 16),
                                 Expanded(
                                   child: Text(
-                                    goal.title,
+                                    memory.title,
                                     style: const TextStyle(
                                       fontSize: 22,
                                       fontWeight: FontWeight.bold,
@@ -411,31 +522,44 @@ class _AccomplishmentCard extends StatelessWidget {
 
                             const SizedBox(height: 16),
 
-                            // Completed date
+                            // Date badge
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 12,
                                 vertical: 8,
                               ),
                               decoration: BoxDecoration(
-                                color: AppColors.xpGreen.withValues(alpha: 0.1),
+                                color: memory.isGoalLinked
+                                    ? AppColors.xpGreen
+                                        .withValues(alpha: 0.1)
+                                    : theme.colorScheme.primary
+                                        .withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(
-                                    Icons.check_circle,
+                                  Icon(
+                                    memory.isGoalLinked
+                                        ? Icons.check_circle
+                                        : Icons.calendar_today,
                                     size: 16,
-                                    color: AppColors.xpGreen,
+                                    color: memory.isGoalLinked
+                                        ? AppColors.xpGreen
+                                        : theme.colorScheme.primary,
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    'Completed ${dateFormat.format(completedAt)}',
-                                    style: const TextStyle(
+                                    memory.isGoalLinked
+                                        ? 'Completed ${dateFormat.format(memory.eventDate)}'
+                                        : dateFormat
+                                            .format(memory.eventDate),
+                                    style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w500,
-                                      color: AppColors.xpGreen,
+                                      color: memory.isGoalLinked
+                                          ? AppColors.xpGreen
+                                          : theme.colorScheme.primary,
                                     ),
                                   ),
                                 ],
@@ -458,12 +582,13 @@ class _AccomplishmentCard extends StatelessWidget {
                               Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: theme.colorScheme.surfaceContainerHighest
+                                  color: theme
+                                      .colorScheme.surfaceContainerHighest
                                       .withValues(alpha: 0.5),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
-                                  goal.completionMemo!,
+                                  memory.memo!,
                                   style: TextStyle(
                                     fontSize: 15,
                                     height: 1.5,
@@ -480,7 +605,8 @@ class _AccomplishmentCard extends StatelessWidget {
                               Container(
                                 padding: const EdgeInsets.all(20),
                                 decoration: BoxDecoration(
-                                  color: theme.colorScheme.surfaceContainerHighest
+                                  color: theme
+                                      .colorScheme.surfaceContainerHighest
                                       .withValues(alpha: 0.5),
                                   borderRadius: BorderRadius.circular(16),
                                 ),
@@ -494,7 +620,7 @@ class _AccomplishmentCard extends StatelessWidget {
                                     ),
                                     const SizedBox(height: 12),
                                     Text(
-                                      'No memory captured',
+                                      'No details captured',
                                       style: TextStyle(
                                         fontSize: 14,
                                         color: theme.colorScheme.onSurface
@@ -505,6 +631,28 @@ class _AccomplishmentCard extends StatelessWidget {
                                 ),
                               ),
                             ],
+
+                            const SizedBox(height: 24),
+
+                            // Edit button
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  onEdit();
+                                },
+                                icon: const Icon(Icons.edit, size: 18),
+                                label: const Text('Edit Memory'),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                            ),
 
                             const SizedBox(height: 32),
                           ],

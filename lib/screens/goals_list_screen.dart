@@ -13,7 +13,7 @@ import '../widgets/gamification/xp_burst.dart';
 import '../widgets/celebration_overlay.dart';
 import 'add_goal_screen.dart';
 import 'goal_detail_screen.dart';
-import 'accomplishments_gallery_screen.dart';
+import 'memories_screen.dart';
 
 enum GoalFilter { all, daily, longTerm }
 
@@ -193,7 +193,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => const AccomplishmentsGalleryScreen(),
+                                    builder: (context) => const MemoriesScreen(),
                                   ),
                                 );
                               },
