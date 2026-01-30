@@ -136,10 +136,8 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
     return XPBurstOverlay(
       key: _xpOverlayKey,
       child: Scaffold(
-        appBar: AppBar(
-          elevation: 0,
-        ),
-        body: _isLoading
+        body: SafeArea(
+          child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : Column(
                 children: [
@@ -196,6 +194,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                   ),
                 ],
               ),
+        ),
         floatingActionButton: FloatingActionButton(
           onPressed: () async {
             await Navigator.push(
