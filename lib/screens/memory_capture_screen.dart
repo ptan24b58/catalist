@@ -33,6 +33,7 @@ class _MemoryCaptureScreenState extends State<MemoryCaptureScreen> {
   String? _existingImagePath;
   DateTime _eventDate = DateTime.now();
   bool _isSaving = false;
+  bool _showCalendar = false;
 
   bool get _isGoalCompletion => widget.goal != null;
   bool get _isEditing => widget.existingMemory != null;
@@ -144,17 +145,14 @@ class _MemoryCaptureScreenState extends State<MemoryCaptureScreen> {
     );
   }
 
-  Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _eventDate,
-      firstDate: DateTime(2000),
-      lastDate: DateTime.now(),
-    );
-    if (picked != null && mounted) {
-      setState(() => _eventDate = picked);
-    }
-  }
+  static final _cardBoxDecoration = BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(24),
+    border: Border.all(
+      color: AppColors.primaryLight.withValues(alpha: 0.3),
+      width: 1,
+    ),
+  );
 
   Future<void> _save() async {
     if (_isSaving) return;
@@ -330,42 +328,80 @@ class _MemoryCaptureScreenState extends State<MemoryCaptureScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                GestureDetector(
-                  onTap: _pickDate,
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerHighest
-                          .withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.calendar_today,
-                          size: 20,
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.6),
+                Container(
+                  decoration: _cardBoxDecoration,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => setState(() => _showCalendar = !_showCalendar),
+                      borderRadius: BorderRadius.circular(24),
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 20,
+                              backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+                              child: const Icon(
+                                Icons.calendar_today,
+                                size: 20,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Text(
+                                DateFormat('MMM d, yyyy').format(_eventDate),
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w600,
+                                  color: theme.colorScheme.onSurface,
+                                ),
+                              ),
+                            ),
+                            Icon(
+                              _showCalendar ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                              color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 12),
-                        Text(
-                          DateFormat('MMMM d, yyyy').format(_eventDate),
-                          style: TextStyle(
-                            fontSize: 15,
-                            color: theme.colorScheme.onSurface,
-                          ),
-                        ),
-                        const Spacer(),
-                        Icon(
-                          Icons.edit,
-                          size: 16,
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.4),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
+                if (_showCalendar) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    decoration: _cardBoxDecoration,
+                    clipBehavior: Clip.antiAlias,
+                    child: Theme(
+                      data: theme.copyWith(
+                        colorScheme: theme.colorScheme.copyWith(
+                          primary: AppColors.primary,
+                          onPrimary: Colors.white,
+                          surface: Colors.white,
+                          onSurface: theme.colorScheme.onSurface,
+                        ),
+                        textButtonTheme: TextButtonThemeData(
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                      child: CalendarDatePicker(
+                        initialDate: _eventDate,
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime.now(),
+                        onDateChanged: (picked) {
+                          setState(() {
+                            _eventDate = picked;
+                            _showCalendar = false;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 24),
               ],
 

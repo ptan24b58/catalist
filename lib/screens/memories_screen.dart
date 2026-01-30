@@ -67,7 +67,7 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: AppColors.surfaceTint,
       appBar: AppBar(
         title: const Text('Memories'),
         centerTitle: true,
