@@ -241,6 +241,26 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     return '${((_goal.targetValue ?? 0) - _goal.currentValue).toStringAsFixed(0)} ${_goal.unit ?? ''} to go'.trim();
   }
 
+  String _formatMilestoneDeadline(DateTime deadline, DateTime now, bool completed) {
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final dateStr = '${months[deadline.month - 1]} ${deadline.day}';
+    
+    if (completed) {
+      return dateStr;
+    }
+    
+    final diff = deadline.difference(now).inDays;
+    if (diff < 0) {
+      return '$dateStr (${-diff} days overdue)';
+    } else if (diff == 0) {
+      return '$dateStr (Today)';
+    } else if (diff == 1) {
+      return '$dateStr (Tomorrow)';
+    } else {
+      return '$dateStr ($diff days left)';
+    }
+  }
+
   // --- Build ---
 
   @override
@@ -675,6 +695,10 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
             final milestone = entry.value;
             final index = entry.key;
             final isLast = index == _goal.milestones.length - 1;
+            final now = DateTime.now();
+            final isOverdue = milestone.deadline != null && 
+                milestone.deadline!.isBefore(now) && 
+                !milestone.completed;
 
             return IntrinsicHeight(
               child: Row(
@@ -729,28 +753,63 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                             decoration: BoxDecoration(
                               color: milestone.completed
                                   ? AppColors.xpGreen.withValues(alpha: 0.08)
-                                  : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                                  : isOverdue
+                                      ? theme.colorScheme.error.withValues(alpha: 0.08)
+                                      : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
                               borderRadius: BorderRadius.circular(16),
                             ),
-                            child: Row(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Expanded(
-                                  child: Text(
-                                    milestone.title,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                      decoration: milestone.completed
-                                          ? TextDecoration.lineThrough
-                                          : null,
-                                      color: milestone.completed
-                                          ? theme.colorScheme.onSurface.withValues(alpha: 0.5)
-                                          : theme.colorScheme.onSurface,
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        milestone.title,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500,
+                                          decoration: milestone.completed
+                                              ? TextDecoration.lineThrough
+                                              : null,
+                                          color: milestone.completed
+                                              ? theme.colorScheme.onSurface.withValues(alpha: 0.5)
+                                              : theme.colorScheme.onSurface,
+                                        ),
+                                      ),
                                     ),
-                                  ),
+                                    if (milestone.completed)
+                                      const Icon(Icons.check_circle, color: AppColors.xpGreen, size: 20),
+                                  ],
                                 ),
-                                if (milestone.completed)
-                                  const Icon(Icons.check_circle, color: AppColors.xpGreen, size: 20),
+                                if (milestone.deadline != null) ...[
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        isOverdue ? Icons.warning_amber_rounded : Icons.calendar_today,
+                                        size: 12,
+                                        color: milestone.completed
+                                            ? theme.colorScheme.onSurface.withValues(alpha: 0.4)
+                                            : isOverdue
+                                                ? theme.colorScheme.error
+                                                : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        _formatMilestoneDeadline(milestone.deadline!, now, milestone.completed),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: milestone.completed
+                                              ? theme.colorScheme.onSurface.withValues(alpha: 0.4)
+                                              : isOverdue
+                                                  ? theme.colorScheme.error
+                                                  : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ],
                             ),
                           ),

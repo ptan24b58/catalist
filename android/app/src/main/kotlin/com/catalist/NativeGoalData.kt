@@ -142,7 +142,8 @@ data class NativeMilestone(
     val id: String,
     val title: String,
     val completed: Boolean,
-    val completedAt: Long?  // epoch millis
+    val completedAt: Long?,  // epoch millis
+    val deadline: Long?      // epoch millis
 )
 
 // ─── Date helpers (mirrors Dart DateUtils) ───
@@ -241,7 +242,8 @@ private fun parseGoal(obj: JSONObject): NativeGoal {
                     id = m.getString("id"),
                     title = m.getString("title"),
                     completed = m.optBoolean("completed", false),
-                    completedAt = parseIsoDate(m.optString("completedAt", null))
+                    completedAt = parseIsoDate(if (m.has("completedAt") && !m.isNull("completedAt")) m.getString("completedAt") else null),
+                    deadline = parseIsoDate(if (m.has("deadline") && !m.isNull("deadline")) m.getString("deadline") else null)
                 )
             )
         }

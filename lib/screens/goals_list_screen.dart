@@ -902,6 +902,43 @@ class _GoalsListScreenState extends State<GoalsListScreen>
       );
     }
 
+    // For milestone goals, show next milestone deadline if any
+    if (goal.progressType == ProgressType.milestones) {
+      final nextMilestone = _getNextMilestoneWithDeadline(goal, now);
+      if (nextMilestone != null) {
+        final daysRemaining = nextMilestone.deadline!.difference(now).inDays;
+        final isOverdue = daysRemaining < 0;
+        return Row(
+          children: [
+            Icon(
+              isOverdue ? Icons.warning : Icons.flag_outlined,
+              size: 14,
+              color: isOverdue
+                  ? Theme.of(context).colorScheme.error
+                  : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                isOverdue
+                    ? 'Milestone overdue'
+                    : daysRemaining == 0
+                        ? 'Milestone due today'
+                        : 'Next milestone in $daysRemaining days',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isOverdue
+                      ? Theme.of(context).colorScheme.error
+                      : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        );
+      }
+    }
+
     if (goal.deadline != null) {
       final daysRemaining = goal.getDaysRemaining(now);
       final isOverdue = goal.isOverdue(now);
@@ -939,6 +976,19 @@ class _GoalsListScreenState extends State<GoalsListScreen>
         color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
       ),
     );
+  }
+
+  /// Get the next incomplete milestone with a deadline
+  Milestone? _getNextMilestoneWithDeadline(Goal goal, DateTime now) {
+    final incompleteMilestones = goal.milestones
+        .where((m) => !m.completed && m.deadline != null)
+        .toList();
+    
+    if (incompleteMilestones.isEmpty) return null;
+    
+    // Sort by deadline and return the earliest
+    incompleteMilestones.sort((a, b) => a.deadline!.compareTo(b.deadline!));
+    return incompleteMilestones.first;
   }
 }
 
