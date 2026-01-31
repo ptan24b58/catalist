@@ -328,13 +328,16 @@ class GoalRepository {
         ? (goal.targetValue != null && todayCompletions.length >= goal.targetValue!)
         : true; // For completion type, any completion = done
 
-    // Update streak logic - only if this is the first completion today
-    final newStreak = _calculateNewStreak(
-      goal.currentStreak,
-      lastCompleted,
-      today,
-      yesterday,
-    );
+    // Update streak logic
+    // For numeric goals: only bump streak when goal becomes completed
+    // For completion goals: bump on first completion today
+    final shouldUpdateStreak = goal.progressType == ProgressType.numeric
+        ? (!wasCompletedBefore && isCompletedAfter)
+        : true;
+
+    final newStreak = shouldUpdateStreak
+        ? _calculateNewStreak(goal.currentStreak, lastCompleted, today, yesterday)
+        : goal.currentStreak;
 
     final updatedGoal = goal.copyWith(
       lastCompletedAt: completedAt,

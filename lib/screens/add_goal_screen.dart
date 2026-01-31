@@ -634,11 +634,7 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
                 borderRadius: BorderRadius.circular(12),
                 child: IconButton(
                   onPressed: _canAddMilestone ? _addMilestone : null,
-                  icon: const Icon(Icons.add, color: Colors.white),
-                  style: IconButton.styleFrom(
-                    disabledBackgroundColor: theme.colorScheme.surfaceContainerHighest,
-                    disabledForegroundColor: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                  ),
+                  icon: const Icon(Icons.add, color: Colors.white)
                 ),
               ),
             ],

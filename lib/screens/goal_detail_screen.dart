@@ -95,7 +95,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
             builder: (context) => MemoryCaptureScreen(goal: _goal),
           ),
         );
-        
+
         if (result != null && result['celebrate'] == true && mounted) {
           Navigator.of(context).pop({
             'celebrate': true,
@@ -116,8 +116,16 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
 
     try {
       final wasCompleted = _goal.isCompleted;
-      final newValue = _goal.currentValue + value;
-      await goalRepository.updateNumericProgress(_goal.id, newValue);
+
+      if (_goal.goalType == GoalType.daily) {
+        // Daily numeric: log each unit as individual completions
+        for (var i = 0; i < value.toInt(); i++) {
+          await goalRepository.logDailyCompletion(_goal.id, DateTime.now());
+        }
+      } else {
+        final newValue = _goal.currentValue + value;
+        await goalRepository.updateNumericProgress(_goal.id, newValue);
+      }
       _progressController.clear();
 
       await _loadGoal();
@@ -130,7 +138,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
             builder: (context) => MemoryCaptureScreen(goal: _goal),
           ),
         );
-        
+
         if (result != null && result['celebrate'] == true && mounted) {
           Navigator.of(context).pop({
             'celebrate': true,
@@ -161,7 +169,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
             builder: (context) => MemoryCaptureScreen(goal: _goal),
           ),
         );
-        
+
         if (result != null && result['celebrate'] == true && mounted) {
           Navigator.of(context).pop({
             'celebrate': true,
@@ -196,181 +204,205 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     final progress = _goal.getProgress();
     final isCompleted = _goal.isCompleted;
     final theme = Theme.of(context);
-    final headerColor = isCompleted
-        ? AppColors.xpGreen
-        : theme.colorScheme.primary;
+    final accentColor = isCompleted ? AppColors.xpGreen : theme.colorScheme.primary;
 
     return XPBurstOverlay(
       key: _xpOverlayKey,
       child: Scaffold(
-        body: CustomScrollView(
-          slivers: [
-            SliverAppBar(
-              expandedHeight: 200,
-              floating: false,
-              pinned: true,
-              backgroundColor: headerColor,
-              iconTheme: const IconThemeData(color: Colors.white),
-              actions: [
-                PopupMenuButton(
-                  icon: const Icon(Icons.more_vert, color: Colors.white),
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      child: Row(
-                        children: [
-                          Icon(Icons.delete_outline, color: theme.colorScheme.error),
-                          const SizedBox(width: 12),
-                          const Text('Delete Goal'),
-                        ],
-                      ),
-                      onTap: () async {
-                        await Future.delayed(const Duration(milliseconds: 100));
-                        _deleteGoal();
-                      },
-                    ),
-                  ],
+        backgroundColor: AppColors.surfaceTint,
+        appBar: AppBar(
+          backgroundColor: AppColors.surfaceTint,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back_ios_new, color: theme.colorScheme.onSurface),
+            onPressed: () => Navigator.pop(context),
+          ),
+          actions: [
+            PopupMenuButton(
+              icon: Icon(Icons.more_vert, color: theme.colorScheme.onSurface),
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete_outline, color: theme.colorScheme.error),
+                      const SizedBox(width: 12),
+                      const Text('Delete Goal'),
+                    ],
+                  ),
+                  onTap: () async {
+                    await Future.delayed(const Duration(milliseconds: 100));
+                    _deleteGoal();
+                  },
                 ),
               ],
-              flexibleSpace: FlexibleSpaceBar(
-                title: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (isCompleted) ...[
-                      const CrownIcon(size: 20),
-                      const SizedBox(width: 8),
-                    ],
-                    Flexible(
-                      child: Text(
-                        _goal.title,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 17,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                background: Container(color: headerColor),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
-                child: Column(
-                  children: [
-                    _buildMainProgressCard(context, progress, isCompleted),
-                    const SizedBox(height: 16),
-                    _buildProgressControls(context),
-                    if (_goal.goalType == GoalType.daily) ...[
-                      const SizedBox(height: 16),
-                      _buildStreakCard(),
-                    ],
-                    if (_goal.goalType == GoalType.longTerm && _goal.deadline != null) ...[
-                      const SizedBox(height: 16),
-                      _buildDeadlineCard(context),
-                    ],
-                  ],
-                ),
-              ),
             ),
           ],
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
+          child: Column(
+            children: [
+              _buildHeaderCard(context, accentColor, isCompleted),
+              const SizedBox(height: 16),
+              _buildProgressRingCard(context, progress, isCompleted, accentColor),
+              const SizedBox(height: 16),
+              _buildProgressControls(context),
+              if (_goal.goalType == GoalType.daily) ...[
+                const SizedBox(height: 16),
+                _buildStreakCard(),
+              ],
+              if (_goal.goalType == GoalType.longTerm && _goal.deadline != null) ...[
+                const SizedBox(height: 16),
+                _buildDeadlineCard(context),
+              ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // Cached card decoration to avoid recreating on every build
+  // --- Card decoration ---
+
   static final _cardDecorationCached = BoxDecoration(
     color: Colors.white,
-    borderRadius: BorderRadius.circular(24),
-    boxShadow: [
-      BoxShadow(
-        color: Colors.black.withValues(alpha: 0.08),
-        blurRadius: 12,
-        offset: const Offset(0, 4),
-      ),
-    ],
+    borderRadius: BorderRadius.circular(24)
   );
 
   BoxDecoration _cardDecoration(BuildContext context) => _cardDecorationCached;
 
-  /// Reusable "Completed" indicator widget - extracted to avoid duplication
-  Widget _buildCompletedIndicator(BuildContext context) {
+  // --- 1. Header Card ---
+
+  Widget _buildHeaderCard(BuildContext context, Color accentColor, bool isCompleted) {
+    final theme = Theme.of(context);
+    final createdDate = '${_goal.createdAt.month}/${_goal.createdAt.day}/${_goal.createdAt.year}';
+    final isDaily = _goal.goalType == GoalType.daily;
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
       decoration: _cardDecoration(context),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: AppColors.xpGreen.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.check_circle, color: AppColors.xpGreen, size: 24),
-            SizedBox(width: 8),
-            Text(
-              'Completed',
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
-                color: AppColors.xpGreen,
-              ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Type chip
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: accentColor.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(20),
             ),
-          ],
-        ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  isDaily ? Icons.flag_rounded : Icons.rocket_launch_rounded,
+                  size: 13,
+                  color: accentColor,
+                ),
+                const SizedBox(width: 5),
+                Text(
+                  isDaily ? 'Daily' : 'Long-term',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.3,
+                    color: accentColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Title
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (isCompleted) ...[
+                const Padding(
+                  padding: EdgeInsets.only(top: 4),
+                  child: CrownIcon(size: 24),
+                ),
+                const SizedBox(width: 10),
+              ],
+              Expanded(
+                child: Text(
+                  _goal.title,
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    height: 1.2,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          // Created date
+          Text(
+            'Created $createdDate',
+            style: TextStyle(
+              fontSize: 12,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildMainProgressCard(BuildContext context, double progress, bool isCompleted) {
+  // --- 2. Progress Ring Card ---
+
+  Widget _buildProgressRingCard(BuildContext context, double progress, bool isCompleted, Color accentColor) {
     final theme = Theme.of(context);
     final trackColor = theme.colorScheme.surfaceContainerHighest;
+    final isDaily = _goal.goalType == GoalType.daily;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
       decoration: _cardDecoration(context),
       child: Column(
         children: [
           SizedBox(
-            width: 120,
-            height: 120,
+            width: 140,
+            height: 140,
             child: Stack(
               alignment: Alignment.center,
               children: [
                 SizedBox(
-                  width: 120,
-                  height: 120,
+                  width: 140,
+                  height: 140,
                   child: CustomPaint(
                     painter: _GradientCircularProgressPainter(
                       progress: progress,
                       trackColor: trackColor,
                       gradientColors: isCompleted
                           ? [AppColors.xpGreen, AppColors.xpGreen]
-                          : AppColors.progressGradientColors,
-                      strokeWidth: 8,
+                          : [theme.colorScheme.primary, theme.colorScheme.primary],
+                      strokeWidth: 10,
                     ),
                   ),
                 ),
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    Icon(
+                      isDaily ? Icons.flag_rounded : Icons.rocket_launch_rounded,
+                      size: 20,
+                      color: isCompleted
+                          ? AppColors.xpGreen
+                          : accentColor.withValues(alpha: 0.5),
+                    ),
+                    const SizedBox(height: 2),
                     Text(
                       '${(progress * 100).toInt()}%',
                       style: TextStyle(
-                        fontSize: 28,
+                        fontSize: 30,
                         fontWeight: FontWeight.bold,
-                        color: isCompleted ? AppColors.xpGreen : theme.colorScheme.primary,
-                      ),
-                    ),
-                    Text(
-                      _getStatusText(isCompleted),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                        color: isCompleted ? AppColors.xpGreen : accentColor,
                       ),
                     ),
                   ],
@@ -380,10 +412,21 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
           ),
           const SizedBox(height: 16),
           Text(
+            _getStatusText(isCompleted),
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: isCompleted
+                  ? AppColors.xpGreen
+                  : theme.colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
             _getProgressDescription(),
             style: TextStyle(
-              fontSize: 14,
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              fontSize: 13,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
             ),
             textAlign: TextAlign.center,
           ),
@@ -391,6 +434,8 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
       ),
     );
   }
+
+  // --- Status / description helpers ---
 
   String _getStatusText(bool isCompleted) {
     if (isCompleted) return 'Completed!';
@@ -438,6 +483,8 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     };
   }
 
+  // --- 3. Progress Controls ---
+
   Widget _buildProgressControls(BuildContext context) {
     return switch (_goal.progressType) {
       ProgressType.completion => _buildCompletionControls(context),
@@ -447,13 +494,43 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     };
   }
 
+  /// Reusable "Completed" indicator widget
+  Widget _buildCompletedIndicator(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: _cardDecoration(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.xpGreen.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.check_circle, color: AppColors.xpGreen, size: 24),
+            SizedBox(width: 8),
+            Text(
+              'Completed',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                color: AppColors.xpGreen,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _completeLongTermGoal() async {
     // First mark the goal as complete
     await goalRepository.markLongTermComplete(_goal.id);
     await _loadGoal();
-    
+
     if (!mounted) return;
-    
+
     // Navigate to accomplishment capture screen
     final result = await Navigator.push<Map<String, dynamic>>(
       context,
@@ -461,7 +538,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
         builder: (context) => MemoryCaptureScreen(goal: _goal),
       ),
     );
-    
+
     // If celebrate flag is set, pop back to goal list with the flag and XP
     if (result != null && result['celebrate'] == true) {
       if (mounted) {
@@ -473,33 +550,57 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     }
   }
 
+  // -- Completion Controls --
+
   Widget _buildCompletionControls(BuildContext context) {
     if (_goal.isCompleted) {
       return _buildCompletedIndicator(context);
     }
 
-    return ElevatedButton.icon(
-      onPressed: _goal.goalType == GoalType.daily
-          ? _logDailyCompletion
-          : _completeLongTermGoal,
-      icon: const Icon(Icons.check_circle, size: 24),
-      label: Text(
-        _goal.goalType == GoalType.daily
-            ? 'Mark Complete Today'
-            : 'Mark as Complete',
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-      ),
-      style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 18),
-        minimumSize: const Size(double.infinity, 60),
-        backgroundColor: AppColors.xpGreen,
-        foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+    final isDaily = _goal.goalType == GoalType.daily;
+
+    return Container(
+      decoration: _cardDecoration(context),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: isDaily ? _logDailyCompletion : _completeLongTermGoal,
+          borderRadius: BorderRadius.circular(24),
+          child: Ink(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [AppColors.primary, AppColors.xpGreen],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.check_circle_rounded, color: Colors.white, size: 28),
+                  const SizedBox(width: 12),
+                  Text(
+                    isDaily ? 'Mark Complete Today' : 'Mark as Complete',
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
   }
+
+  // -- Percentage Controls --
 
   Widget _buildPercentageControls(BuildContext context) {
     final theme = Theme.of(context);
@@ -524,7 +625,11 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
           SliderTheme(
             data: SliderTheme.of(context).copyWith(
               activeTrackColor: theme.colorScheme.primary,
+              inactiveTrackColor: theme.colorScheme.surfaceContainerHighest,
               thumbColor: theme.colorScheme.primary,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+              trackHeight: 6,
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 20),
             ),
             child: Slider(
               value: _percentageSliderValue,
@@ -537,7 +642,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
               },
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -565,79 +670,145 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     );
   }
 
+  // -- Milestone Controls --
+
   Widget _buildMilestoneControls(BuildContext context) {
     final theme = Theme.of(context);
+    final completed = _goal.completedMilestones;
+    final total = _goal.milestones.length;
+    final milestoneProgress = total > 0 ? completed / total : 0.0;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: _cardDecoration(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Milestones',
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 17,
-              color: theme.colorScheme.onSurface,
+          // Header with progress bar
+          Row(
+            children: [
+              Text(
+                'Milestones',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 17,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '$completed/$total',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // Mini progress bar
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: milestoneProgress,
+              minHeight: 4,
+              backgroundColor: theme.colorScheme.surfaceContainerHighest,
+              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.xpGreen),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
+          // Timeline milestones
           ..._goal.milestones.asMap().entries.map((entry) {
             final milestone = entry.value;
             final index = entry.key;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => _toggleMilestone(milestone),
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: milestone.completed
-                          ? AppColors.xpGreen.withValues(alpha: 0.08)
-                          : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
+            final isLast = index == _goal.milestones.length - 1;
+
+            return IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Timeline dot + line
+                  SizedBox(
+                    width: 24,
+                    child: Column(
                       children: [
-                        CircleAvatar(
-                          radius: 20,
-                          backgroundColor: milestone.completed
-                              ? AppColors.xpGreen
-                              : theme.colorScheme.primary.withValues(alpha: 0.2),
-                          child: milestone.completed
-                              ? const Icon(Icons.check, color: Colors.white, size: 22)
-                              : Text(
-                                  '${index + 1}',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 15,
-                                    color: theme.colorScheme.primary,
-                                  ),
-                                ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Text(
-                            milestone.title,
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w500,
-                              decoration: milestone.completed
-                                  ? TextDecoration.lineThrough
-                                  : null,
+                        Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: milestone.completed
+                                ? AppColors.xpGreen
+                                : theme.colorScheme.surfaceContainerHighest,
+                            border: Border.all(
                               color: milestone.completed
-                                  ? theme.colorScheme.onSurface.withValues(alpha: 0.6)
-                                  : theme.colorScheme.onSurface,
+                                  ? AppColors.xpGreen
+                                  : theme.colorScheme.onSurface.withValues(alpha: 0.25),
+                              width: 2,
                             ),
                           ),
+                          child: milestone.completed
+                              ? const Icon(Icons.check, size: 8, color: Colors.white)
+                              : null,
                         ),
+                        if (!isLast)
+                          Expanded(
+                            child: Container(
+                              width: 2,
+                              color: milestone.completed
+                                  ? AppColors.xpGreen.withValues(alpha: 0.4)
+                                  : theme.colorScheme.surfaceContainerHighest,
+                            ),
+                          ),
                       ],
                     ),
                   ),
-                ),
+                  const SizedBox(width: 12),
+                  // Milestone card
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(bottom: isLast ? 0 : 8),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => _toggleMilestone(milestone),
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: milestone.completed
+                                  ? AppColors.xpGreen.withValues(alpha: 0.08)
+                                  : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    milestone.title,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      decoration: milestone.completed
+                                          ? TextDecoration.lineThrough
+                                          : null,
+                                      color: milestone.completed
+                                          ? theme.colorScheme.onSurface.withValues(alpha: 0.5)
+                                          : theme.colorScheme.onSurface,
+                                    ),
+                                  ),
+                                ),
+                                if (milestone.completed)
+                                  const Icon(Icons.check_circle, color: AppColors.xpGreen, size: 20),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             );
           }),
@@ -645,6 +816,8 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
       ),
     );
   }
+
+  // -- Numeric Controls --
 
   Widget _buildNumericControls(BuildContext context) {
     final theme = Theme.of(context);
@@ -669,78 +842,128 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
             ),
           ),
           const SizedBox(height: 16),
+          TextField(
+            controller: _progressController,
+            decoration: InputDecoration(
+              hintText: 'Enter amount',
+              hintStyle: TextStyle(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+              ),
+              suffixText: unit.isNotEmpty ? unit : null,
+              suffixStyle: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.primary,
+              ),
+              filled: true,
+              fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            ),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            onSubmitted: (_) => _addNumericProgress(),
+          ),
+          const SizedBox(height: 12),
+          // Quick-add buttons
           Row(
             children: [
-              Expanded(
-                child: TextField(
-                  controller: _progressController,
-                  decoration: InputDecoration(
-                    hintText: unit.isNotEmpty ? 'Add $unit (e.g., 10)' : 'e.g., 10',
-                    hintStyle: TextStyle(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                    ),
-                    filled: true,
-                    fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  ),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  onSubmitted: (_) => _addNumericProgress(),
-                ),
-              ),
-              const SizedBox(width: 12),
+              _buildQuickAddButton(context, 1),
+              const SizedBox(width: 8),
+              _buildQuickAddButton(context, 5),
+              const SizedBox(width: 8),
+              _buildQuickAddButton(context, 10),
+              const Spacer(),
               Material(
                 color: theme.colorScheme.primary,
                 borderRadius: BorderRadius.circular(12),
                 child: IconButton(
                   onPressed: _isNumericInputValid ? _addNumericProgress : null,
-                  icon: const Icon(Icons.add, color: Colors.white, size: 24),
-                  style: IconButton.styleFrom(
-                    disabledBackgroundColor: theme.colorScheme.surfaceContainerHighest,
-                    disabledForegroundColor: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                  ),
+                  icon: const Icon(Icons.add, color: Colors.white, size: 24)
                 ),
               ),
             ],
           ),
           if (_goal.goalType == GoalType.daily) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Today: ',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 14,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                    ),
-                  ),
-                  Text(
-                    '${_goal.getProgressToday(DateTime.now()).toInt()}/${_goal.dailyTarget}',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            const SizedBox(height: 16),
+            _buildDailyProgressBar(context),
           ],
         ],
       ),
     );
   }
+
+  Widget _buildQuickAddButton(BuildContext context, int value) {
+    final theme = Theme.of(context);
+    return Material(
+      color: theme.colorScheme.primary.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () {
+          _progressController.text = value.toString();
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          child: Text(
+            '+$value',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: theme.colorScheme.primary,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDailyProgressBar(BuildContext context) {
+    final theme = Theme.of(context);
+    final todayProgress = _goal.getProgressToday(DateTime.now());
+    final target = _goal.dailyTarget;
+    final fraction = target > 0 ? (todayProgress / target).clamp(0.0, 1.0) : 0.0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              'Today',
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 13,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
+            const Spacer(),
+            Text(
+              '${todayProgress.toInt()}/$target',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: fraction,
+            minHeight: 6,
+            backgroundColor: theme.colorScheme.surfaceContainerHighest,
+            valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // --- 4. Streak Card ---
 
   Widget _buildStreakCard() {
     return StreakCard(
@@ -748,6 +971,8 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
       bestStreak: _goal.longestStreak,
     );
   }
+
+  // --- 5. Deadline Card ---
 
   Widget _buildDeadlineCard(BuildContext context) {
     final theme = Theme.of(context);
@@ -871,4 +1096,3 @@ class _GradientCircularProgressPainter extends CustomPainter {
         oldDelegate.trackColor != trackColor;
   }
 }
-
