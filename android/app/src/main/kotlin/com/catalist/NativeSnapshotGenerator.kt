@@ -15,8 +15,8 @@ import kotlin.math.abs
  *   1. Empty (no goals)
  *   2. 5-min celebration (recently completed goal)
  *   3. End of day (23:00–05:00)
- *   4. Long-term focus hour (14:00, 20:00)
- *   5. All daily goals complete
+ *   4. All daily goals complete
+ *   5. Long-term focus hour (14:00, 20:00) — only when NO daily goals exist
  *   6. Daily in-progress (fallback to long-term if no dailies)
  */
 object NativeSnapshotGenerator {
@@ -126,23 +126,7 @@ object NativeSnapshotGenerator {
             )
         }
 
-        // 4. Long-term focus hour (14:00, 20:00)
-        if (isLongTermHour(hour) && incompleteLongTerm.isNotEmpty()) {
-            val mostUrgent = findMostUrgent(incompleteLongTerm, nowMillis) ?: incompleteLongTerm.first()
-            val urgency = calculateUrgency(mostUrgent, nowMillis)
-            return buildSnapshot(
-                nowSec = nowSec,
-                hour = hour,
-                minute = minute,
-                ctaContext = NativeCtaEngine.CTAContext.LONG_TERM_IN_PROGRESS,
-                goal = mostUrgent,
-                nowMillis = nowMillis,
-                emotion = emotionFromUrgency(urgency),
-                status = statusFromUrgency(urgency),
-            )
-        }
-
-        // 5. All daily goals complete
+        // 4. All daily goals complete (check BEFORE long-term focus hour)
         if (dailyGoals.isNotEmpty() && incompleteDailies.isEmpty()) {
             val lastCompleted = findMostRecentlyCompleted(dailyGoals)
             return buildSnapshot(
@@ -155,6 +139,22 @@ object NativeSnapshotGenerator {
                 emotion = "celebrate",
                 emotionExpiresAt = (lastCompleted?.lastCompletedAt ?: nowMillis) + FIVE_MIN_MS,
                 status = "celebrate",
+            )
+        }
+
+        // 5. Long-term focus hour (14:00, 20:00) — only when NO daily goals exist
+        if (isLongTermHour(hour) && dailyGoals.isEmpty() && longTermGoals.isNotEmpty()) {
+            val mostUrgent = findMostUrgent(incompleteLongTerm, nowMillis) ?: longTermGoals.first()
+            val urgency = calculateUrgency(mostUrgent, nowMillis)
+            return buildSnapshot(
+                nowSec = nowSec,
+                hour = hour,
+                minute = minute,
+                ctaContext = NativeCtaEngine.CTAContext.LONG_TERM_IN_PROGRESS,
+                goal = mostUrgent,
+                nowMillis = nowMillis,
+                emotion = emotionFromUrgency(urgency),
+                status = statusFromUrgency(urgency),
             )
         }
 
