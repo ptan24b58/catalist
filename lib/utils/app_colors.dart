@@ -70,6 +70,22 @@ class AppColors {
   static const streakGlow = Color(0xFFFF6B35);
   static const crownGlow = Color(0xFFFFD700);
 
+  // ============ Goal Accent Colors (for card left strips) ============
+  static const goalAccentColors = [
+    primary,      // purple
+    catBlue,      // blue
+    catGold,      // gold
+    xpGreen,      // teal
+  ];
+
+  /// Get accent color for a goal card by index
+  static Color getGoalAccent(int index) {
+    return goalAccentColors[index % goalAccentColors.length];
+  }
+
+  /// Gradient from primary to xpGreen for progress indicators
+  static const progressGradientColors = [primary, xpGreen];
+
   /// Get emotion color based on emotion type
   static Color getEmotionColor(String emotion) {
     switch (emotion.toLowerCase()) {

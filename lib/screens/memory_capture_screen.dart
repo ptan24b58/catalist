@@ -252,8 +252,7 @@ class _MemoryCaptureScreenState extends State<MemoryCaptureScreen> {
         foregroundColor: theme.colorScheme.onSurface,
         leading: IconButton(
           icon: const Icon(Icons.close),
-          onPressed: () => Navigator.pop(
-              context, _isGoalCompletion ? false : null),
+          onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           _isEditing

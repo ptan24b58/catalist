@@ -64,13 +64,6 @@ class MainActivity: FlutterActivity() {
                             Log.e("MainActivity", "Error updating widget $widgetId", e)
                         }
                     }
-
-                    // Send broadcast as backup
-                    val intent = Intent(this@MainActivity, CatalistWidgetProvider::class.java).apply {
-                        action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
-                        putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, widgetIds)
-                    }
-                    sendBroadcast(intent)
                 } catch (e: Exception) {
                     Log.e("MainActivity", "Error updating widget", e)
                 }

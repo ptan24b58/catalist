@@ -84,7 +84,7 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
                             color: AppColors.xpGreen.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Icon(
+                          child: const Icon(
                             Icons.photo_album_rounded,
                             size: 24,
                             color: AppColors.xpGreen,
@@ -127,14 +127,25 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.photo_album_outlined,
-              size: 80,
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+            Container(
+              width: 100,
+              height: 100,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+              ),
+              child: ClipOval(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Image.asset(
+                    'assets/cat.png',
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
             ),
             const SizedBox(height: 24),
             Text(
-              'No Memories Yet',
+              'Nothing to see here...',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
@@ -143,7 +154,7 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              'Capture moments from your goals, travels, and life events. Tap + to add your first memory!',
+              'Capture your first moment!',
               style: TextStyle(
                 fontSize: 14,
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.6),

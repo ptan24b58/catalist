@@ -106,7 +106,7 @@ object NativeSnapshotGenerator {
                 goal = recentlyCompleted,
                 nowMillis = nowMillis,
                 emotion = "celebrate",
-                emotionExpiresAt = nowMillis + FIVE_MIN_MS,
+                emotionExpiresAt = (recentlyCompleted.lastCompletedAt ?: nowMillis) + FIVE_MIN_MS,
                 status = "celebrate",
             )
         }
@@ -153,7 +153,7 @@ object NativeSnapshotGenerator {
                 goal = lastCompleted,
                 nowMillis = nowMillis,
                 emotion = "celebrate",
-                emotionExpiresAt = nowMillis + FIVE_MIN_MS,
+                emotionExpiresAt = (lastCompleted?.lastCompletedAt ?: nowMillis) + FIVE_MIN_MS,
                 status = "celebrate",
             )
         }

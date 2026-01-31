@@ -217,7 +217,7 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'New goal',
+          'New Goal',
           style: theme.appBarTheme.titleTextStyle,
         ),
         centerTitle: true,
@@ -289,7 +289,7 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'What do you want to track?',
+          'What adventure are you starting?',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w600,
@@ -305,7 +305,7 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
             autofocus: true,
             style: TextStyle(fontSize: 15, color: theme.colorScheme.onSurface),
             decoration: InputDecoration(
-              hintText: r'Drink 4 bottles of water? maybe...',
+              hintText: 'Drink more water? Read a book? Dream big!',
               hintStyle: TextStyle(
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
               ),

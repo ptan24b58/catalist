@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../utils/app_colors.dart';
 import 'goals_list_screen.dart';
 import 'memories_screen.dart';
@@ -17,6 +18,13 @@ class _HomeScreenState extends State<HomeScreen> {
     GoalsListScreen(),
     MemoriesScreen(),
   ];
+
+  void _onTabTapped(int index) {
+    if (_currentIndex != index) {
+      HapticFeedback.lightImpact();
+      setState(() => _currentIndex = index);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,17 +48,22 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildNavItem(
-                  index: 0,
-                  icon: Icons.flag_rounded,
-                  label: 'Goals',
+                // Goals tab
+                Expanded(
+                  child: _buildNavItem(
+                    index: 0,
+                    icon: Icons.flag_rounded,
+                    label: 'Goals',
+                  ),
                 ),
-                _buildNavItem(
-                  index: 1,
-                  icon: Icons.photo_album_rounded,
-                  label: 'Memories',
+                // Memories tab
+                Expanded(
+                  child: _buildNavItem(
+                    index: 1,
+                    icon: Icons.photo_album_rounded,
+                    label: 'Memories',
+                  ),
                 ),
               ],
             ),
@@ -66,46 +79,40 @@ class _HomeScreenState extends State<HomeScreen> {
     required String label,
   }) {
     final isSelected = _currentIndex == index;
-    
-    return Expanded(
-      child: InkWell(
-        onTap: () {
-          if (_currentIndex != index) {
-            setState(() => _currentIndex = index);
-          }
-        },
-        borderRadius: BorderRadius.circular(16),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? AppColors.primary.withValues(alpha: 0.1)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: 24,
-                color: isSelected ? AppColors.primary : AppColors.textSecondary,
-              ),
-              if (isSelected) ...[
-                const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
-                  ),
+
+    return InkWell(
+      onTap: () => _onTabTapped(index),
+      borderRadius: BorderRadius.circular(24),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.primary.withValues(alpha: 0.12)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 22,
+              color: isSelected ? AppColors.primary : AppColors.textSecondary,
+            ),
+            if (isSelected) ...[
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
                 ),
-              ],
+              ),
             ],
-          ),
+          ],
         ),
       ),
     );

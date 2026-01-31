@@ -1,4 +1,6 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../domain/goal.dart';
 import '../services/service_locator.dart';
 import '../utils/logger.dart';
@@ -63,6 +65,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
 
   Future<void> _logDailyCompletion() async {
     try {
+      HapticFeedback.heavyImpact();
       final wasCompleted = _goal.isCompleted;
       final updated = await goalRepository.logDailyCompletion(_goal.id, DateTime.now());
       await _loadGoal();
@@ -323,10 +326,8 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     );
   }
 
-
   Widget _buildMainProgressCard(BuildContext context, double progress, bool isCompleted) {
     final theme = Theme.of(context);
-    final progressColor = isCompleted ? AppColors.xpGreen : theme.colorScheme.primary;
     final trackColor = theme.colorScheme.surfaceContainerHighest;
 
     return Container(
@@ -343,11 +344,15 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                 SizedBox(
                   width: 120,
                   height: 120,
-                  child: CircularProgressIndicator(
-                    value: progress,
-                    strokeWidth: 8,
-                    backgroundColor: trackColor,
-                    valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+                  child: CustomPaint(
+                    painter: _GradientCircularProgressPainter(
+                      progress: progress,
+                      trackColor: trackColor,
+                      gradientColors: isCompleted
+                          ? [AppColors.xpGreen, AppColors.xpGreen]
+                          : AppColors.progressGradientColors,
+                      strokeWidth: 8,
+                    ),
                   ),
                 ),
                 Column(
@@ -358,7 +363,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
-                        color: progressColor,
+                        color: isCompleted ? AppColors.xpGreen : theme.colorScheme.primary,
                       ),
                     ),
                     Text(
@@ -401,11 +406,23 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     };
   }
 
+  static const _dailyCongrats = [
+    'Great job today! Keep it up!',
+    'Nailed it! Your cat is proud!',
+    'Another day conquered!',
+    'You\'re on fire! Keep going!',
+  ];
+  static const _longTermCongrats = [
+    'You achieved your goal! Amazing work!',
+    'Goal conquered! Time to celebrate!',
+    'Incredible effort - you made it happen!',
+    'Mission accomplished! What\'s next?',
+  ];
+
   String _getProgressDescription() {
     if (_goal.isCompleted) {
-      return _goal.goalType == GoalType.daily
-          ? 'Great job today! Keep it up!'
-          : 'You achieved your goal! Amazing work!';
+      final msgs = _goal.goalType == GoalType.daily ? _dailyCongrats : _longTermCongrats;
+      return msgs[_goal.title.length % msgs.length];
     }
     return switch (_goal.progressType) {
       ProgressType.completion => _goal.goalType == GoalType.daily
@@ -795,6 +812,63 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
       ),
     );
   }
+}
 
+/// Custom painter for gradient circular progress indicator
+class _GradientCircularProgressPainter extends CustomPainter {
+  final double progress;
+  final Color trackColor;
+  final List<Color> gradientColors;
+  final double strokeWidth;
+
+  _GradientCircularProgressPainter({
+    required this.progress,
+    required this.trackColor,
+    required this.gradientColors,
+    required this.strokeWidth,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.width - strokeWidth) / 2;
+
+    // Draw track
+    final trackPaint = Paint()
+      ..color = trackColor
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    canvas.drawCircle(center, radius, trackPaint);
+
+    if (progress <= 0) return;
+
+    // Draw gradient arc
+    final rect = Rect.fromCircle(center: center, radius: radius);
+    final gradient = SweepGradient(
+      startAngle: -pi / 2,
+      endAngle: -pi / 2 + 2 * pi * progress,
+      colors: gradientColors,
+    );
+    final progressPaint = Paint()
+      ..shader = gradient.createShader(rect)
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawArc(
+      rect,
+      -pi / 2,
+      2 * pi * progress,
+      false,
+      progressPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _GradientCircularProgressPainter oldDelegate) {
+    return oldDelegate.progress != progress ||
+        oldDelegate.trackColor != trackColor;
+  }
 }
 
