@@ -605,6 +605,8 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
 
   Widget _buildMilestonesStep(BuildContext context) {
     final theme = Theme.of(context);
+    final now = DateTime.now();
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -660,17 +662,14 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
           ..._milestoneInputs.asMap().entries.map((entry) {
             final milestone = entry.value;
             final index = entry.key;
-            final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            final deadlineLabel = milestone.deadline != null
-                ? '${months[milestone.deadline!.month - 1]} ${milestone.deadline!.day}'
-                : 'Add deadline';
+            final hasDeadline = milestone.deadline != null;
             final isCalendarOpen = _showMilestoneCalendarIndex == index;
-            final now = DateTime.now();
             
             return Column(
               children: [
                 Container(
                   margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
@@ -682,112 +681,123 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
                       ),
                     ],
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
+                      // Simple number
+                      SizedBox(
+                        width: 24,
+                        child: Text(
+                          '${index + 1}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Title and deadline chip
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            CircleAvatar(
-                              radius: 16,
-                              backgroundColor: theme.colorScheme.primaryContainer,
-                              child: Text(
-                                '${index + 1}',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
-                                  color: theme.colorScheme.onPrimaryContainer,
+                            Text(
+                              milestone.title,
+                              style: TextStyle(
+                                fontSize: 15,
+                                color: theme.colorScheme.onSurface,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            // Deadline chip
+                            GestureDetector(
+                              onTap: () => _toggleMilestoneCalendar(index),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: hasDeadline 
+                                      ? theme.colorScheme.primary.withValues(alpha: 0.1)
+                                      : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.calendar_today_outlined,
+                                      size: 12,
+                                      color: hasDeadline
+                                          ? theme.colorScheme.primary
+                                          : theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      hasDeadline 
+                                          ? _formatShortDate(milestone.deadline!)
+                                          : 'Due date',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: hasDeadline
+                                            ? theme.colorScheme.primary
+                                            : theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                                        fontWeight: hasDeadline ? FontWeight.w500 : FontWeight.w400,
+                                      ),
+                                    ),
+                                    if (hasDeadline) ...[
+                                      const SizedBox(width: 4),
+                                      GestureDetector(
+                                        onTap: () {
+                                          _updateMilestoneDeadline(index, null);
+                                          if (isCalendarOpen) _toggleMilestoneCalendar(index);
+                                        },
+                                        child: Icon(
+                                          Icons.close,
+                                          size: 14,
+                                          color: theme.colorScheme.primary,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                milestone.title,
-                                style: const TextStyle(fontSize: 15),
-                              ),
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.close, size: 20, color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
-                              onPressed: () => _removeMilestone(index),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
                             ),
                           ],
                         ),
                       ),
-                      // Deadline row
-                      InkWell(
-                        onTap: () => _toggleMilestoneCalendar(index),
-                        borderRadius: const BorderRadius.only(
-                          bottomLeft: Radius.circular(20),
-                          bottomRight: Radius.circular(20),
-                        ),
+                      // Remove button
+                      GestureDetector(
+                        onTap: () => _removeMilestone(index),
                         child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                          child: Row(
-                            children: [
-                              const SizedBox(width: 44), // Align with title
-                              Icon(
-                                Icons.calendar_today,
-                                size: 16,
-                                color: milestone.deadline != null
-                                    ? theme.colorScheme.primary
-                                    : theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  deadlineLabel,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: milestone.deadline != null
-                                        ? theme.colorScheme.onSurface
-                                        : theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                                  ),
-                                ),
-                              ),
-                              if (milestone.deadline != null)
-                                GestureDetector(
-                                  onTap: () {
-                                    _updateMilestoneDeadline(index, null);
-                                    if (isCalendarOpen) {
-                                      _toggleMilestoneCalendar(index);
-                                    }
-                                  },
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(right: 8),
-                                    child: Icon(
-                                      Icons.close,
-                                      size: 18,
-                                      color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                                    ),
-                                  ),
-                                ),
-                              Icon(
-                                isCalendarOpen ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                                color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                              ),
-                            ],
+                          padding: const EdgeInsets.all(8),
+                          child: Icon(
+                            Icons.remove_circle_outline,
+                            size: 20,
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
                           ),
                         ),
                       ),
                     ],
                   ),
                 ),
-                // Inline calendar
-                if (isCalendarOpen) ...[
+                // Compact calendar
+                if (isCalendarOpen)
                   Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    decoration: _cardBoxDecoration,
+                    margin: const EdgeInsets.only(top: 8, bottom: 8),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: theme.colorScheme.outline.withValues(alpha: 0.1),
+                      ),
+                    ),
                     clipBehavior: Clip.antiAlias,
                     child: Theme(
                       data: theme.copyWith(
                         colorScheme: theme.colorScheme.copyWith(
                           primary: theme.colorScheme.primary,
                           onPrimary: Colors.white,
-                          surface: Colors.white,
+                          surface: theme.colorScheme.surface,
                           onSurface: theme.colorScheme.onSurface,
                         ),
                       ),
@@ -802,13 +812,17 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
                       ),
                     ),
                   ),
-                ],
               ],
             );
           }),
         ],
       ],
     );
+  }
+
+  String _formatShortDate(DateTime date) {
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${months[date.month - 1]} ${date.day}';
   }
 
   Widget _buildNumericStep(BuildContext context) {
