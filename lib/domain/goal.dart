@@ -20,12 +20,14 @@ class Milestone {
   final String title;
   final bool completed;
   final DateTime? completedAt;
+  final DateTime? deadline;
 
   const Milestone({
     required this.id,
     required this.title,
     this.completed = false,
     this.completedAt,
+    this.deadline,
   });
 
   Milestone copyWith({
@@ -33,12 +35,14 @@ class Milestone {
     String? title,
     bool? completed,
     DateTime? completedAt,
+    DateTime? deadline,
   }) {
     return Milestone(
       id: id ?? this.id,
       title: title ?? this.title,
       completed: completed ?? this.completed,
       completedAt: completedAt ?? this.completedAt,
+      deadline: deadline ?? this.deadline,
     );
   }
 
@@ -48,6 +52,7 @@ class Milestone {
       'title': title,
       'completed': completed,
       'completedAt': completedAt?.toIso8601String(),
+      'deadline': deadline?.toIso8601String(),
     };
   }
 
@@ -58,6 +63,9 @@ class Milestone {
       completed: json['completed'] as bool? ?? false,
       completedAt: json['completedAt'] != null
           ? DateTime.parse(json['completedAt'] as String)
+          : null,
+      deadline: json['deadline'] != null
+          ? DateTime.parse(json['deadline'] as String)
           : null,
     );
   }
