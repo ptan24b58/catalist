@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import '../utils/logger.dart';
 
-const _kDuration = Duration(milliseconds: 3500);
+const _kDuration = Duration(milliseconds: 3650);
 const _kAssetPath = 'assets/celebration/fireworks.json';
 
 /// Full-screen celebration overlay (fireworks). Auto-dismisses after 4 seconds.

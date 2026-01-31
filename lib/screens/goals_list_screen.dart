@@ -558,9 +558,9 @@ class _GoalsListScreenState extends State<GoalsListScreen>
 
   Widget _buildEmptyState() {
     final message = switch (_filter) {
-      GoalFilter.all => 'Empty...',
-      GoalFilter.daily => 'Boring...',
-      GoalFilter.longTerm => 'Disappointing...',
+      GoalFilter.all => 'Empty ...',
+      GoalFilter.daily => 'Boring ...',
+      GoalFilter.longTerm => 'Disappointing ...',
       GoalFilter.completed => 'NOT COOL!',
     };
 

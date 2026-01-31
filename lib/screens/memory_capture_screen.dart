@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../domain/goal.dart';
 import '../domain/memory.dart';
@@ -9,11 +10,11 @@ import '../utils/app_colors.dart';
 import '../utils/id_generator.dart';
 import '../utils/logger.dart';
 
-/// Screen for capturing/editing a memory.
+/// Screen for capturing/editing a memory - designed to feel like journaling, not a form.
 ///
 /// Three modes via constructor params:
 /// - **Goal completion** (`goal != null`): Congratulations header, creates memory linked to goal
-/// - **Standalone** (`goal == null, existingMemory == null`): Title field, optional date picker, photo, memo
+/// - **Standalone** (`goal == null, existingMemory == null`): Photo-first, story-style capture
 /// - **Edit** (`existingMemory != null`): Pre-fills all fields, replaces image on save
 class MemoryCaptureScreen extends StatefulWidget {
   final Goal? goal;
@@ -25,9 +26,12 @@ class MemoryCaptureScreen extends StatefulWidget {
   State<MemoryCaptureScreen> createState() => _MemoryCaptureScreenState();
 }
 
-class _MemoryCaptureScreenState extends State<MemoryCaptureScreen> {
+class _MemoryCaptureScreenState extends State<MemoryCaptureScreen>
+    with SingleTickerProviderStateMixin {
   final _memoController = TextEditingController();
   final _titleController = TextEditingController();
+  final _titleFocusNode = FocusNode();
+  final _memoFocusNode = FocusNode();
   final _imageService = GoalImageService();
   File? _selectedImage;
   String? _existingImagePath;
@@ -35,13 +39,26 @@ class _MemoryCaptureScreenState extends State<MemoryCaptureScreen> {
   bool _isSaving = false;
   bool _showCalendar = false;
 
+  late AnimationController _animController;
+  late Animation<double> _fadeAnim;
+
   bool get _isGoalCompletion => widget.goal != null;
   bool get _isEditing => widget.existingMemory != null;
   bool get _isStandalone => !_isGoalCompletion && !_isEditing;
+  bool get _hasPhoto =>
+      _selectedImage != null ||
+      (_existingImagePath != null && File(_existingImagePath!).existsSync());
 
   @override
   void initState() {
     super.initState();
+    _animController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+    _fadeAnim = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
+    _animController.forward();
+
     if (_isEditing) {
       final m = widget.existingMemory!;
       _titleController.text = m.title;
@@ -55,14 +72,36 @@ class _MemoryCaptureScreenState extends State<MemoryCaptureScreen> {
 
   @override
   void dispose() {
+    _animController.dispose();
     _memoController.dispose();
     _titleController.dispose();
+    _titleFocusNode.dispose();
+    _memoFocusNode.dispose();
     super.dispose();
+  }
+
+  String _formatDateCasually(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    final diff = today.difference(dateOnly).inDays;
+
+    if (diff == 0) return 'Today';
+    if (diff == 1) return 'Yesterday';
+    if (diff < 7) return DateFormat('EEEE').format(date);
+    if (date.year == now.year) return DateFormat('MMM d').format(date);
+    return DateFormat('MMM d, yyyy').format(date);
+  }
+
+  void _toggleCalendar() {
+    HapticFeedback.selectionClick();
+    setState(() => _showCalendar = !_showCalendar);
   }
 
   Future<void> _pickFromCamera() async {
     final image = await _imageService.pickFromCamera();
     if (image != null && mounted) {
+      HapticFeedback.lightImpact();
       setState(() {
         _selectedImage = image;
         _existingImagePath = null;
@@ -73,6 +112,7 @@ class _MemoryCaptureScreenState extends State<MemoryCaptureScreen> {
   Future<void> _pickFromGallery() async {
     final image = await _imageService.pickFromGallery();
     if (image != null && mounted) {
+      HapticFeedback.lightImpact();
       setState(() {
         _selectedImage = image;
         _existingImagePath = null;
@@ -81,37 +121,31 @@ class _MemoryCaptureScreenState extends State<MemoryCaptureScreen> {
   }
 
   void _showImageSourcePicker() {
+    HapticFeedback.selectionClick();
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius:
+              const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 40,
+                  width: 36,
                   height: 4,
                   decoration: BoxDecoration(
                     color: Colors.grey[300],
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Add a Photo',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
                 Row(
                   children: [
                     Expanded(
@@ -145,32 +179,30 @@ class _MemoryCaptureScreenState extends State<MemoryCaptureScreen> {
     );
   }
 
-  static final _cardBoxDecoration = BoxDecoration(
-    color: Colors.white,
-    borderRadius: BorderRadius.circular(24),
-    border: Border.all(
-      color: AppColors.primaryLight.withValues(alpha: 0.3),
-      width: 1,
-    ),
-  );
-
   Future<void> _save() async {
     if (_isSaving) return;
 
     final title = _titleController.text.trim();
     if (title.isEmpty) {
+      HapticFeedback.heavyImpact();
+      _titleFocusNode.requestFocus();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a title.')),
+        SnackBar(
+          content: const Text('Give this memory a name'),
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
       );
       return;
     }
 
     setState(() => _isSaving = true);
+    HapticFeedback.mediumImpact();
 
     try {
       String? imagePath = _existingImagePath;
 
-      // Save new image if selected
       if (_selectedImage != null) {
         final entityId = _isEditing
             ? widget.existingMemory!.id
@@ -183,7 +215,6 @@ class _MemoryCaptureScreenState extends State<MemoryCaptureScreen> {
           : null;
 
       if (_isEditing) {
-        // Update existing memory
         final updated = widget.existingMemory!.copyWith(
           title: title,
           memo: memo,
@@ -192,7 +223,6 @@ class _MemoryCaptureScreenState extends State<MemoryCaptureScreen> {
         );
         await memoryRepository.saveMemory(updated);
       } else {
-        // Create new memory
         final memory = Memory(
           id: IdGenerator.generate(),
           title: title,
@@ -207,7 +237,6 @@ class _MemoryCaptureScreenState extends State<MemoryCaptureScreen> {
         );
         await memoryRepository.saveMemory(memory);
 
-        // Also update goal with completion data for backward compat
         if (_isGoalCompletion) {
           final updatedGoal = widget.goal!.copyWith(
             completionImagePath: imagePath,
@@ -229,7 +258,12 @@ class _MemoryCaptureScreenState extends State<MemoryCaptureScreen> {
       if (mounted) {
         setState(() => _isSaving = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to save. Please try again.')),
+          SnackBar(
+            content: const Text('Couldn\'t save. Try again?'),
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
         );
       }
     }
@@ -245,480 +279,552 @@ class _MemoryCaptureScreenState extends State<MemoryCaptureScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        foregroundColor: theme.colorScheme.onSurface,
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          _isEditing
-              ? 'Edit Memory'
-              : _isGoalCompletion
-                  ? 'Capture This Moment'
-                  : 'New Memory',
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Celebration header (goal completion mode only)
-              if (_isGoalCompletion) ...[
-                _buildCelebrationHeader(theme),
-                const SizedBox(height: 32),
-              ],
+      backgroundColor: AppColors.surfaceTint,
+      body: SafeArea(
+        child: Stack(
+          children: [
+            // Main scrollable content
+            SingleChildScrollView(
+              padding: EdgeInsets.only(
+                bottom: 100 + MediaQuery.of(context).padding.bottom,
+              ),
+              child: FadeTransition(
+                opacity: _fadeAnim,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Top bar
+                    _buildTopBar(theme),
 
-              // Title field (standalone and edit modes)
-              if (_isStandalone || _isEditing) ...[
-                Text(
-                  'Title',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: theme.colorScheme.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _titleController,
-                  maxLength: 100,
-                  decoration: InputDecoration(
-                    hintText: 'What happened?',
-                    hintStyle: TextStyle(
-                      color:
-                          theme.colorScheme.onSurface.withValues(alpha: 0.4),
-                    ),
-                    filled: true,
-                    fillColor: theme.colorScheme.surfaceContainerHighest
-                        .withValues(alpha: 0.5),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: theme.colorScheme.primary,
-                        width: 2,
+                    // Goal completion badge
+                    if (_isGoalCompletion) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+                        child: _buildCompletionBadge(theme),
                       ),
+                    ],
+
+                    const SizedBox(height: 16),
+
+                    // Photo area
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: _buildPhotoArea(theme),
                     ),
-                    contentPadding: const EdgeInsets.all(16),
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
 
-              // Date picker (standalone and edit modes)
-              if (_isStandalone || _isEditing) ...[
-                Text(
-                  'Date',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: theme.colorScheme.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  decoration: _cardBoxDecoration,
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () => setState(() => _showCalendar = !_showCalendar),
-                      borderRadius: BorderRadius.circular(24),
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 20,
-                              backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-                              child: const Icon(
-                                Icons.calendar_today,
-                                size: 20,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Text(
-                                DateFormat('MMM d, yyyy').format(_eventDate),
-                                style: TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w600,
-                                  color: theme.colorScheme.onSurface,
-                                ),
-                              ),
-                            ),
-                            Icon(
-                              _showCalendar ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                              color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                            ),
-                          ],
-                        ),
-                      ),
+                    const SizedBox(height: 20),
+
+                    // Journal card
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: _buildJournalCard(theme),
                     ),
-                  ),
-                ),
-                if (_showCalendar) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    decoration: _cardBoxDecoration,
-                    clipBehavior: Clip.antiAlias,
-                    child: Theme(
-                      data: theme.copyWith(
-                        colorScheme: theme.colorScheme.copyWith(
-                          primary: AppColors.primary,
-                          onPrimary: Colors.white,
-                          surface: Colors.white,
-                          onSurface: theme.colorScheme.onSurface,
-                        ),
-                        textButtonTheme: TextButtonThemeData(
-                          style: TextButton.styleFrom(
-                            foregroundColor: AppColors.primary,
-                          ),
-                        ),
-                      ),
-                      child: CalendarDatePicker(
-                        initialDate: _eventDate,
-                        firstDate: DateTime(2000),
-                        lastDate: DateTime.now(),
-                        onDateChanged: (picked) {
-                          setState(() {
-                            _eventDate = picked;
-                            _showCalendar = false;
-                          });
-                        },
-                      ),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 24),
-              ],
-
-              // Photo section
-              Text(
-                'Add a Photo (Optional)',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.onSurface,
+                  ],
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                _isGoalCompletion
-                    ? 'Capture this achievement with a memorable photo'
-                    : 'Add a photo to remember this moment',
-                style: TextStyle(
-                  fontSize: 14,
-                  color:
-                      theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                ),
-              ),
-              const SizedBox(height: 16),
-              _buildImagePicker(theme),
+            ),
 
-              const SizedBox(height: 32),
-
-              // Memo section
-              Text(
-                'Write a Memo (Optional)',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _isGoalCompletion
-                    ? 'Reflect on your journey and what this means to you'
-                    : 'Capture your thoughts about this moment',
-                style: TextStyle(
-                  fontSize: 14,
-                  color:
-                      theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              TextField(
-                controller: _memoController,
-                maxLines: 4,
-                maxLength: 500,
-                decoration: InputDecoration(
-                  hintText: _isGoalCompletion
-                      ? 'How does it feel to achieve this goal?'
-                      : 'What made this moment special?',
-                  hintStyle: TextStyle(
-                    color: theme.colorScheme.onSurface
-                        .withValues(alpha: 0.4),
-                  ),
-                  filled: true,
-                  fillColor: theme.colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.5),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: theme.colorScheme.primary,
-                      width: 2,
-                    ),
-                  ),
-                  contentPadding: const EdgeInsets.all(16),
-                ),
-              ),
-
-              const SizedBox(height: 32),
-
-              // Action buttons
-              ElevatedButton(
-                onPressed: _isSaving ? null : _save,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.xpGreen,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 0,
-                ),
-                child: _isSaving
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    : Text(
-                        _isGoalCompletion
-                            ? 'Save & Celebrate'
-                            : _isEditing
-                                ? 'Save Changes'
-                                : 'Save Memory',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-              ),
-
-              if (_isGoalCompletion) ...[
-                const SizedBox(height: 12),
-                TextButton(
-                  onPressed: _isSaving ? null : _skipAndCelebrate,
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                  child: Text(
-                    'Skip for now',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: theme.colorScheme.onSurface
-                          .withValues(alpha: 0.6),
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
+            // Floating save button
+            Positioned(
+              left: 20,
+              right: 20,
+              bottom: MediaQuery.of(context).padding.bottom + 16,
+              child: _buildSaveButton(theme),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildCelebrationHeader(ThemeData theme) {
+  Widget _buildTopBar(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+      child: Row(
+        children: [
+          // Close button
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest
+                    .withValues(alpha: 0.6),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.close_rounded,
+                size: 22,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Screen title
+          Expanded(
+            child: Text(
+              _isGoalCompletion
+                  ? 'Capture this moment'
+                  : _isEditing
+                      ? 'Edit memory'
+                      : 'New memory',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+          ),
+          if (_isGoalCompletion)
+            TextButton(
+              onPressed: _isSaving ? null : _skipAndCelebrate,
+              child: Text(
+                'Skip',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompletionBadge(ThemeData theme) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppColors.xpGreen.withValues(alpha: 0.1),
+            AppColors.xpGreen.withValues(alpha: 0.15),
             AppColors.xpGreen.withValues(alpha: 0.05),
           ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppColors.xpGreen.withValues(alpha: 0.2),
+          color: AppColors.xpGreen.withValues(alpha: 0.3),
         ),
       ),
-      child: Column(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           const Icon(
             Icons.emoji_events_rounded,
-            size: 48,
+            size: 20,
             color: AppColors.xpGreen,
           ),
-          const SizedBox(height: 12),
-          Text(
-            'Congratulations!',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: theme.colorScheme.onSurface,
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              'Goal completed! Save a memory of this moment.',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'You completed "${widget.goal!.title}"',
-            style: TextStyle(
-              fontSize: 16,
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-            ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildImagePicker(ThemeData theme) {
-    final hasImage = _selectedImage != null || _existingImagePath != null;
-    final imageWidget = _selectedImage != null
-        ? Image.file(_selectedImage!, fit: BoxFit.cover)
-        : (_existingImagePath != null && File(_existingImagePath!).existsSync())
-            ? Image.file(File(_existingImagePath!), fit: BoxFit.cover)
-            : null;
+  Widget _buildPhotoArea(ThemeData theme) {
+    Widget? imageWidget;
+    if (_selectedImage != null) {
+      imageWidget = Image.file(_selectedImage!, fit: BoxFit.cover);
+    } else if (_existingImagePath != null &&
+        File(_existingImagePath!).existsSync()) {
+      imageWidget = Image.file(File(_existingImagePath!), fit: BoxFit.cover);
+    }
 
     return GestureDetector(
       onTap: _showImageSourcePicker,
       child: Container(
-        height: 200,
+        height: _hasPhoto ? 240 : 160,
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest
-              .withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: hasImage && imageWidget != null
-                ? AppColors.xpGreen
-                : theme.colorScheme.outline.withValues(alpha: 0.3),
-            width: hasImage && imageWidget != null ? 2 : 1,
-          ),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        child: hasImage && imageWidget != null
+        clipBehavior: Clip.antiAlias,
+        child: imageWidget != null
             ? Stack(
                 fit: StackFit.expand,
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: imageWidget,
-                  ),
+                  imageWidget,
+                  // Subtle gradient for readability
                   Positioned(
-                    top: 8,
-                    right: 8,
-                    child: GestureDetector(
-                      onTap: () => setState(() {
-                        _selectedImage = null;
-                        _existingImagePath = null;
-                      }),
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.6),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.close,
-                          color: Colors.white,
-                          size: 20,
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: 80,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.4),
+                          ],
                         ),
                       ),
                     ),
                   ),
+                  // Change photo chip
                   Positioned(
-                    bottom: 8,
-                    right: 8,
+                    bottom: 12,
+                    right: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 7,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.45),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.camera_alt_rounded,
+                              color: Colors.white, size: 15),
+                          SizedBox(width: 6),
+                          Text(
+                            'Change',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Remove photo
+                  Positioned(
+                    top: 12,
+                    right: 12,
                     child: GestureDetector(
-                      onTap: _showImageSourcePicker,
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        setState(() {
+                          _selectedImage = null;
+                          _existingImagePath = null;
+                        });
+                      },
                       child: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.6),
-                          borderRadius: BorderRadius.circular(8),
+                          color: Colors.black.withValues(alpha: 0.4),
+                          shape: BoxShape.circle,
                         ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.edit, color: Colors.white, size: 16),
-                            SizedBox(width: 4),
-                            Text(
-                              'Change',
-                              style: TextStyle(
-                                  color: Colors.white, fontSize: 12),
-                            ),
-                          ],
+                        child: const Icon(
+                          Icons.close_rounded,
+                          color: Colors.white,
+                          size: 18,
                         ),
                       ),
                     ),
                   ),
                 ],
               )
-            : _existingImagePath != null
-                ? Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.broken_image_outlined,
-                        size: 48,
+            : Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.08),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.add_photo_alternate_rounded,
+                        size: 32,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Add a photo',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
                         color: theme.colorScheme.onSurface
-                            .withValues(alpha: 0.3),
+                            .withValues(alpha: 0.6),
                       ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Photo unavailable',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.5),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Tap to add a new photo',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: theme.colorScheme.primary,
-                        ),
-                      ),
-                    ],
-                  )
-                : Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.add_a_photo_rounded,
-                        size: 48,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'optional',
+                      style: TextStyle(
+                        fontSize: 12,
                         color: theme.colorScheme.onSurface
-                            .withValues(alpha: 0.4),
+                            .withValues(alpha: 0.35),
                       ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Tap to add a photo',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.5),
-                        ),
-                      ),
-                    ],
+                    ),
+                  ],
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildJournalCard(ThemeData theme) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Date chip
+            if (_isStandalone || _isEditing) ...[
+              _buildDateChip(theme),
+              // Inline calendar
+              if (_showCalendar) ...[
+                const SizedBox(height: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: theme.colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.8),
+                    ),
                   ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Theme(
+                    data: theme.copyWith(
+                      colorScheme: theme.colorScheme.copyWith(
+                        primary: AppColors.primary,
+                        onPrimary: Colors.white,
+                        surface: Colors.white,
+                        onSurface: theme.colorScheme.onSurface,
+                      ),
+                      textButtonTheme: TextButtonThemeData(
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                    child: CalendarDatePicker(
+                      initialDate: _eventDate,
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime.now(),
+                      onDateChanged: (picked) {
+                        setState(() {
+                          _eventDate = picked;
+                          _showCalendar = false;
+                        });
+                      },
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 20),
+            ],
+
+            // Title
+            TextField(
+              controller: _titleController,
+              focusNode: _titleFocusNode,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.onSurface,
+                height: 1.3,
+              ),
+              maxLength: 100,
+              maxLines: null,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: InputDecoration(
+                hintText: _isGoalCompletion
+                    ? 'How did it feel?'
+                    : 'What happened?',
+                hintStyle: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color:
+                      theme.colorScheme.onSurface.withValues(alpha: 0.2),
+                ),
+                border: InputBorder.none,
+                counterText: '',
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                isDense: true,
+              ),
+            ),
+
+            // Divider
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Container(
+                height: 1,
+                color: theme.colorScheme.surfaceContainerHighest
+                    .withValues(alpha: 0.6),
+              ),
+            ),
+
+            // Memo
+            TextField(
+              controller: _memoController,
+              focusNode: _memoFocusNode,
+              style: TextStyle(
+                fontSize: 15,
+                color:
+                    theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                height: 1.6,
+              ),
+              maxLength: 500,
+              maxLines: null,
+              minLines: 4,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: InputDecoration(
+                hintText: _isGoalCompletion
+                    ? 'Tell the story of this achievement...'
+                    : 'Tell the story...',
+                hintStyle: TextStyle(
+                  fontSize: 15,
+                  color: theme.colorScheme.onSurface
+                      .withValues(alpha: 0.25),
+                ),
+                border: InputBorder.none,
+                counterText: '',
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                isDense: true,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDateChip(ThemeData theme) {
+    return GestureDetector(
+      onTap: _toggleCalendar,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.calendar_today_rounded,
+              size: 15,
+              color: AppColors.primary,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              _formatDateCasually(_eventDate),
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(width: 4),
+            AnimatedRotation(
+              turns: _showCalendar ? 0.5 : 0,
+              duration: const Duration(milliseconds: 200),
+              child: Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 18,
+                color: AppColors.primary.withValues(alpha: 0.6),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSaveButton(ThemeData theme) {
+    final hasContent = _titleController.text.trim().isNotEmpty;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _isSaving ? null : _save,
+          borderRadius: BorderRadius.circular(16),
+          child: Ink(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: hasContent
+                    ? [AppColors.primary, AppColors.primary.withValues(alpha: 0.85)]
+                    : [
+                        theme.colorScheme.surfaceContainerHighest,
+                        theme.colorScheme.surfaceContainerHighest,
+                      ],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: hasContent
+                  ? [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              alignment: Alignment.center,
+              child: _isSaving
+                  ? const SizedBox(
+                      height: 22,
+                      width: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : Text(
+                      _isGoalCompletion
+                          ? 'Save & Celebrate'
+                          : _isEditing
+                              ? 'Save'
+                              : 'Save Memory',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                        color: hasContent
+                            ? Colors.white
+                            : theme.colorScheme.onSurface
+                                .withValues(alpha: 0.4),
+                      ),
+                    ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -739,8 +845,7 @@ class _ImageSourceButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Material(
-      color:
-          theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
