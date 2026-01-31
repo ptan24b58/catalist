@@ -691,7 +691,7 @@ class _GoalsListScreenState extends State<GoalsListScreen>
                                           ),
                                         ),
                                       ),
-                                      if (isCompleted) ...[
+                                      if (isCompleted && goal.goalType == GoalType.daily) ...[
                                         const SizedBox(width: 8),
                                         const CrownBadge(size: 26),
                                       ],
@@ -763,32 +763,45 @@ class _GoalsListScreenState extends State<GoalsListScreen>
     );
 
     // Wrap in Dismissible for swipe gestures
+    // Long-term goals: only allow swipe-to-delete (left)
+    // Daily goals: allow both swipe-to-complete (right) and swipe-to-delete (left)
+    final isDailyGoal = goal.goalType == GoalType.daily;
+    
+    final deleteBackground = Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.error,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      alignment: Alignment.centerRight,
+      padding: const EdgeInsets.only(right: 24),
+      child: const Icon(Icons.delete_outline, color: Colors.white, size: 32),
+    );
+    
+    final completeBackground = Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.xpGreen,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.only(left: 24),
+      child: const Icon(Icons.check_circle, color: Colors.white, size: 32),
+    );
+    
     return Dismissible(
       key: ValueKey(goal.id),
-      background: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        decoration: BoxDecoration(
-          color: AppColors.xpGreen,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.only(left: 24),
-        child: const Icon(Icons.check_circle, color: Colors.white, size: 32),
-      ),
-      secondaryBackground: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        decoration: BoxDecoration(
-          color: AppColors.error,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 24),
-        child: const Icon(Icons.delete_outline, color: Colors.white, size: 32),
-      ),
+      direction: isDailyGoal
+          ? DismissDirection.horizontal
+          : DismissDirection.endToStart, // Only delete for long-term goals
+      // For daily: background = complete (swipe right), secondaryBackground = delete (swipe left)
+      // For long-term: background = delete (only direction allowed)
+      background: isDailyGoal ? completeBackground : deleteBackground,
+      secondaryBackground: isDailyGoal ? deleteBackground : null,
       confirmDismiss: (direction) async {
         if (direction == DismissDirection.startToEnd) {
-          // Swipe right -> complete daily goal
-          if (goal.goalType == GoalType.daily && !isCompleted) {
+          // Swipe right -> complete daily goal (only reachable for daily goals)
+          if (!isCompleted) {
             HapticFeedback.mediumImpact();
             await _logProgress(goal);
           }
