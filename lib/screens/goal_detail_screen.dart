@@ -549,11 +549,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
           borderRadius: BorderRadius.circular(24),
           child: Ink(
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [AppColors.primary, AppColors.xpGreen],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              ),
+              color: AppColors.xpGreen,
               borderRadius: BorderRadius.circular(24),
             ),
             child: Padding(
@@ -561,7 +557,6 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.check_circle_rounded, color: Colors.white, size: 28),
                   const SizedBox(width: 12),
                   Text(
                     isDaily ? 'Mark Complete Today' : 'Mark as Complete',

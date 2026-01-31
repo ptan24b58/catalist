@@ -608,7 +608,10 @@ class _GoalsListScreenState extends State<GoalsListScreen>
     final now = DateTime.now();
     final progress = goal.getProgress();
     final isCompleted = goal.isCompleted;
-    final accentColor = AppColors.getGoalAccent(index);
+    // Single color per goal type: blue for daily, amber for long-term
+    final accentColor = goal.goalType == GoalType.daily
+        ? AppColors.catBlue
+        : AppColors.catGold;
 
     // Wrap daily goals in Dismissible for swipe gestures
     Widget card = _PressableCard(
@@ -630,8 +633,7 @@ class _GoalsListScreenState extends State<GoalsListScreen>
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(8),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.06),
@@ -640,118 +642,109 @@ class _GoalsListScreenState extends State<GoalsListScreen>
             ),
           ],
         ),
-        child: IntrinsicHeight(
-          child: Row(
-            children: [
-              // Colored left accent strip
-              Container(
-                width: 4,
-                decoration: BoxDecoration(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: IntrinsicHeight(
+            child: Row(
+              children: [
+                // Colored left accent strip
+                Container(
+                  width: 4,
                   color: accentColor,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(20),
-                    bottomLeft: Radius.circular(20),
-                  ),
                 ),
-              ),
-              // Card content
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 12, 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          _buildStatusIcon(goal, isCompleted),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        goal.title,
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
+                // Card content with white background
+                Expanded(
+                  child: Container(
+                    color: Colors.white,
+                    padding: const EdgeInsets.fromLTRB(16, 16, 12, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            _buildStatusIcon(goal, isCompleted),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          goal.title,
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                    if (isCompleted) ...[
-                                      const SizedBox(width: 8),
-                                      const CrownBadge(size: 26),
-                                    ] else ...[
-                                      _buildGoalTypeBadge(goal),
+                                      if (isCompleted) ...[
+                                        const SizedBox(width: 8),
+                                        const CrownBadge(size: 26),
+                                      ],
                                     ],
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                _buildSubtitle(goal, now),
-                              ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  _buildSubtitle(goal, now),
+                                ],
+                              ),
                             ),
-                          ),
-                          // Circular mini-progress on the right
-                          if (goal.goalType != GoalType.daily) ...[
-                            const SizedBox(width: 8),
-                            _buildMiniProgress(progress, isCompleted),
+                            // Circular mini-progress on the right
+                            if (goal.goalType != GoalType.daily) ...[
+                              const SizedBox(width: 8),
+                              _buildMiniProgress(progress, isCompleted),
+                            ],
                           ],
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      // Progress label
-                      Text(
-                        ProgressFormatter.getDetailedProgressLabel(goal, now: now),
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                         ),
-                      ),
-                      // Full-width complete button for daily goals
-                      if (!isCompleted && goal.goalType == GoalType.daily) ...[
-                        const SizedBox(height: 10),
-                        SizedBox(
-                          width: double.infinity,
-                          child: Material(
-                            color: AppColors.xpGreen.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            child: InkWell(
-                              onTap: () => _logProgress(goal),
+                        const SizedBox(height: 8),
+                        // Progress label
+                        Text(
+                          ProgressFormatter.getDetailedProgressLabel(goal, now: now),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                          ),
+                        ),
+                        // Full-width complete button for daily goals
+                        if (!isCompleted && goal.goalType == GoalType.daily) ...[
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            width: double.infinity,
+                            child: Material(
+                              color: AppColors.xpGreen.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 10),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.check_circle_outline,
-                                      size: 20,
-                                      color: AppColors.xpGreen,
-                                    ),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      'Complete Today',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.xpGreen,
+                              child: InkWell(
+                                onTap: () => _logProgress(goal),
+                                borderRadius: BorderRadius.circular(12),
+                                child: const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 10),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Check',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.xpGreen,
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -764,7 +757,7 @@ class _GoalsListScreenState extends State<GoalsListScreen>
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         decoration: BoxDecoration(
           color: AppColors.xpGreen,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(8),
         ),
         alignment: Alignment.centerLeft,
         padding: const EdgeInsets.only(left: 24),
@@ -774,7 +767,7 @@ class _GoalsListScreenState extends State<GoalsListScreen>
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         decoration: BoxDecoration(
           color: AppColors.error,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(8),
         ),
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 24),
@@ -856,29 +849,6 @@ class _GoalsListScreenState extends State<GoalsListScreen>
       ProgressType.numeric => Icons.trending_up,
       _ => Icons.flag_outlined,
     };
-  }
-
-  Widget _buildGoalTypeBadge(Goal goal) {
-    final isDaily = goal.goalType == GoalType.daily;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: isDaily
-            ? Theme.of(context).colorScheme.primaryContainer
-            : Theme.of(context).colorScheme.tertiaryContainer,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        isDaily ? 'Daily' : 'Long-term',
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-          color: isDaily
-              ? Theme.of(context).colorScheme.onPrimaryContainer
-              : Theme.of(context).colorScheme.onTertiaryContainer,
-        ),
-      ),
-    );
   }
 
   Widget _buildSubtitle(Goal goal, DateTime now) {
