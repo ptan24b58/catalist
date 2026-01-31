@@ -49,6 +49,8 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     super.dispose();
   }
 
+  // --- Data / Business Logic ---
+
   Future<void> _loadGoal() async {
     try {
       final updated = await goalRepository.getGoalById(_goal.id);
@@ -63,6 +65,24 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     }
   }
 
+  /// Navigate to memory capture for long-term goal completion, then pop with
+  /// celebrate result. Used by all progress types that can complete a long-term goal.
+  Future<void> _handleLongTermCompletion() async {
+    if (!mounted) return;
+    final result = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MemoryCaptureScreen(goal: _goal),
+      ),
+    );
+    if (result != null && result['celebrate'] == true && mounted) {
+      Navigator.of(context).pop({
+        'celebrate': true,
+        'xp': result['xp'] ?? 20,
+      });
+    }
+  }
+
   Future<void> _logDailyCompletion() async {
     try {
       HapticFeedback.heavyImpact();
@@ -70,7 +90,6 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
       final updated = await goalRepository.logDailyCompletion(_goal.id, DateTime.now());
       await _loadGoal();
 
-      // Only show XP burst and celebration when goal transitions to complete
       if (!wasCompleted && updated.isCompleted && mounted) {
         _xpOverlayKey.currentState?.showXPBurst(Gamification.xpPerDailyCompletion);
         showCelebrationOverlay(context);
@@ -80,28 +99,20 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     }
   }
 
+  Future<void> _completeLongTermGoal() async {
+    await goalRepository.markLongTermComplete(_goal.id);
+    await _loadGoal();
+    await _handleLongTermCompletion();
+  }
+
   Future<void> _updatePercentage() async {
     try {
       final wasCompleted = _goal.isCompleted;
       await goalRepository.updatePercentage(_goal.id, _percentageSliderValue);
-
       await _loadGoal();
 
-      // Navigate to accomplishment capture for long-term goal completion
       if (mounted && _percentageSliderValue >= 100 && !wasCompleted) {
-        final result = await Navigator.push<Map<String, dynamic>>(
-          context,
-          MaterialPageRoute(
-            builder: (context) => MemoryCaptureScreen(goal: _goal),
-          ),
-        );
-
-        if (result != null && result['celebrate'] == true && mounted) {
-          Navigator.of(context).pop({
-            'celebrate': true,
-            'xp': result['xp'] ?? 20,
-          });
-        }
+        await _handleLongTermCompletion();
       }
     } catch (e, stackTrace) {
       AppLogger.error('Failed to update percentage', e, stackTrace);
@@ -110,15 +121,12 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
 
   Future<void> _addNumericProgress() async {
     final value = double.tryParse(_progressController.text);
-    if (value == null || value <= 0) {
-      return;
-    }
+    if (value == null || value <= 0) return;
 
     try {
       final wasCompleted = _goal.isCompleted;
 
       if (_goal.goalType == GoalType.daily) {
-        // Daily numeric: log each unit as individual completions
         for (var i = 0; i < value.toInt(); i++) {
           await goalRepository.logDailyCompletion(_goal.id, DateTime.now());
         }
@@ -127,27 +135,14 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
         await goalRepository.updateNumericProgress(_goal.id, newValue);
       }
       _progressController.clear();
-
       await _loadGoal();
 
-      // Navigate to accomplishment capture for long-term goal completion
-      if (mounted && _goal.isCompleted && !wasCompleted && _goal.goalType == GoalType.longTerm) {
-        final result = await Navigator.push<Map<String, dynamic>>(
-          context,
-          MaterialPageRoute(
-            builder: (context) => MemoryCaptureScreen(goal: _goal),
-          ),
-        );
-
-        if (result != null && result['celebrate'] == true && mounted) {
-          Navigator.of(context).pop({
-            'celebrate': true,
-            'xp': result['xp'] ?? 20,
-          });
+      if (mounted && _goal.isCompleted && !wasCompleted) {
+        if (_goal.goalType == GoalType.longTerm) {
+          await _handleLongTermCompletion();
+        } else {
+          showCelebrationOverlay(context);
         }
-      } else if (mounted && _goal.isCompleted && !wasCompleted) {
-        // Daily goal - just show celebration
-        showCelebrationOverlay(context);
       }
     } catch (e, stackTrace) {
       AppLogger.error('Failed to update progress', e, stackTrace);
@@ -158,24 +153,10 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     try {
       final wasGoalCompleted = _goal.isCompleted;
       await goalRepository.toggleMilestone(_goal.id, milestone.id);
-
       await _loadGoal();
 
-      // Navigate to accomplishment capture for long-term goal completion
       if (mounted && _goal.isCompleted && !wasGoalCompleted) {
-        final result = await Navigator.push<Map<String, dynamic>>(
-          context,
-          MaterialPageRoute(
-            builder: (context) => MemoryCaptureScreen(goal: _goal),
-          ),
-        );
-
-        if (result != null && result['celebrate'] == true && mounted) {
-          Navigator.of(context).pop({
-            'celebrate': true,
-            'xp': result['xp'] ?? 20,
-          });
-        }
+        await _handleLongTermCompletion();
       }
     } catch (e, stackTrace) {
       AppLogger.error('Failed to toggle milestone', e, stackTrace);
@@ -190,14 +171,77 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     if (confirmed) {
       try {
         await goalRepository.deleteGoal(_goal.id);
-        if (mounted) {
-          Navigator.pop(context);
-        }
+        if (mounted) Navigator.pop(context);
       } catch (e, stackTrace) {
         AppLogger.error('Failed to delete goal', e, stackTrace);
       }
     }
   }
+
+  // --- Status / Description Helpers ---
+
+  String _getStatusText(bool isCompleted) {
+    if (isCompleted) return 'Completed!';
+    return switch (_goal.progressType) {
+      ProgressType.completion => _goal.goalType == GoalType.daily
+          ? 'Not Done Today'
+          : 'In Progress',
+      ProgressType.percentage => '${_goal.percentComplete.toInt()}% Complete',
+      ProgressType.milestones =>
+        '${_goal.completedMilestones}/${_goal.milestones.length} Milestones',
+      ProgressType.numeric => _numericStatusText(),
+    };
+  }
+
+  String _numericStatusText() {
+    if (_goal.goalType == GoalType.daily) {
+      final today = _goal.getProgressToday(DateTime.now()).toInt();
+      return '$today / ${_goal.dailyTarget} ${_goal.unit ?? ''}'.trim();
+    }
+    return '${_goal.currentValue.toStringAsFixed(0)} / ${_goal.targetValue?.toStringAsFixed(0) ?? '?'} ${_goal.unit ?? ''}'.trim();
+  }
+
+  static const _dailyCongrats = [
+    'Great job today! Keep it up!',
+    'Nailed it! Your cat is proud!',
+    'Another day conquered!',
+    'You\'re on fire! Keep going!',
+  ];
+  static const _longTermCongrats = [
+    'You achieved your goal! Amazing work!',
+    'Goal conquered! Time to celebrate!',
+    'Incredible effort - you made it happen!',
+    'Mission accomplished! What\'s next?',
+  ];
+
+  String _getProgressDescription() {
+    if (_goal.isCompleted) {
+      final msgs = _goal.goalType == GoalType.daily ? _dailyCongrats : _longTermCongrats;
+      return msgs[_goal.title.length % msgs.length];
+    }
+    return switch (_goal.progressType) {
+      ProgressType.completion => _goal.goalType == GoalType.daily
+          ? 'Tap the button below to mark as complete'
+          : "Mark this goal as complete when you're done",
+      ProgressType.percentage => 'Slide to update your progress',
+      ProgressType.milestones => () {
+          final remaining = _goal.milestones.length - _goal.completedMilestones;
+          return '$remaining milestone${remaining == 1 ? '' : 's'} remaining';
+        }(),
+      ProgressType.numeric => _numericDescriptionText(),
+    };
+  }
+
+  String _numericDescriptionText() {
+    if (_goal.goalType == GoalType.daily) {
+      final today = _goal.getProgressToday(DateTime.now()).toInt();
+      final remaining = _goal.dailyTarget - today;
+      return '$remaining ${_goal.unit ?? ''} to go today'.trim();
+    }
+    return '${((_goal.targetValue ?? 0) - _goal.currentValue).toStringAsFixed(0)} ${_goal.unit ?? ''} to go'.trim();
+  }
+
+  // --- Build ---
 
   @override
   Widget build(BuildContext context) {
@@ -250,7 +294,10 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
               _buildProgressControls(context),
               if (_goal.goalType == GoalType.daily) ...[
                 const SizedBox(height: 16),
-                _buildStreakCard(),
+                StreakCard(
+                  currentStreak: _goal.currentStreak,
+                  bestStreak: _goal.longestStreak,
+                ),
               ],
               if (_goal.goalType == GoalType.longTerm && _goal.deadline != null) ...[
                 const SizedBox(height: 16),
@@ -265,12 +312,10 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
 
   // --- Card decoration ---
 
-  static final _cardDecorationCached = BoxDecoration(
+  static final _cardDecoration = BoxDecoration(
     color: Colors.white,
-    borderRadius: BorderRadius.circular(24)
+    borderRadius: BorderRadius.circular(24),
   );
-
-  BoxDecoration _cardDecoration(BuildContext context) => _cardDecorationCached;
 
   // --- 1. Header Card ---
 
@@ -282,11 +327,10 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
-      decoration: _cardDecoration(context),
+      decoration: _cardDecoration,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Type chip
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
@@ -315,7 +359,6 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          // Title
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -340,7 +383,6 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
             ],
           ),
           const SizedBox(height: 20),
-          // Created date
           Text(
             'Created $createdDate',
             style: TextStyle(
@@ -359,11 +401,12 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     final theme = Theme.of(context);
     final trackColor = theme.colorScheme.surfaceContainerHighest;
     final isDaily = _goal.goalType == GoalType.daily;
+    final ringColor = isCompleted ? AppColors.xpGreen : theme.colorScheme.primary;
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
-      decoration: _cardDecoration(context),
+      decoration: _cardDecoration,
       child: Column(
         children: [
           SizedBox(
@@ -376,12 +419,10 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                   width: 140,
                   height: 140,
                   child: CustomPaint(
-                    painter: _GradientCircularProgressPainter(
+                    painter: _CircularProgressPainter(
                       progress: progress,
                       trackColor: trackColor,
-                      gradientColors: isCompleted
-                          ? [AppColors.xpGreen, AppColors.xpGreen]
-                          : [theme.colorScheme.primary, theme.colorScheme.primary],
+                      progressColor: ringColor,
                       strokeWidth: 10,
                     ),
                   ),
@@ -402,7 +443,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                       style: TextStyle(
                         fontSize: 30,
                         fontWeight: FontWeight.bold,
-                        color: isCompleted ? AppColors.xpGreen : accentColor,
+                        color: ringColor,
                       ),
                     ),
                   ],
@@ -416,9 +457,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,
-              color: isCompleted
-                  ? AppColors.xpGreen
-                  : theme.colorScheme.onSurface,
+              color: isCompleted ? AppColors.xpGreen : theme.colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 4),
@@ -435,54 +474,6 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     );
   }
 
-  // --- Status / description helpers ---
-
-  String _getStatusText(bool isCompleted) {
-    if (isCompleted) return 'Completed!';
-    return switch (_goal.progressType) {
-      ProgressType.completion => _goal.goalType == GoalType.daily
-          ? 'Not Done Today'
-          : 'In Progress',
-      ProgressType.percentage => '${_goal.percentComplete.toInt()}% Complete',
-      ProgressType.milestones =>
-        '${_goal.completedMilestones}/${_goal.milestones.length} Milestones',
-      ProgressType.numeric =>
-        '${_goal.currentValue.toStringAsFixed(0)} / ${_goal.targetValue?.toStringAsFixed(0) ?? '?'} ${_goal.unit ?? ''}',
-    };
-  }
-
-  static const _dailyCongrats = [
-    'Great job today! Keep it up!',
-    'Nailed it! Your cat is proud!',
-    'Another day conquered!',
-    'You\'re on fire! Keep going!',
-  ];
-  static const _longTermCongrats = [
-    'You achieved your goal! Amazing work!',
-    'Goal conquered! Time to celebrate!',
-    'Incredible effort - you made it happen!',
-    'Mission accomplished! What\'s next?',
-  ];
-
-  String _getProgressDescription() {
-    if (_goal.isCompleted) {
-      final msgs = _goal.goalType == GoalType.daily ? _dailyCongrats : _longTermCongrats;
-      return msgs[_goal.title.length % msgs.length];
-    }
-    return switch (_goal.progressType) {
-      ProgressType.completion => _goal.goalType == GoalType.daily
-          ? 'Tap the button below to mark as complete'
-          : "Mark this goal as complete when you're done",
-      ProgressType.percentage => 'Slide to update your progress',
-      ProgressType.milestones => () {
-          final remaining = _goal.milestones.length - _goal.completedMilestones;
-          return '$remaining milestone${remaining == 1 ? '' : 's'} remaining';
-        }(),
-      ProgressType.numeric =>
-        '${((_goal.targetValue ?? 0) - _goal.currentValue).toStringAsFixed(0)} ${_goal.unit ?? ''} to go',
-    };
-  }
-
   // --- 3. Progress Controls ---
 
   Widget _buildProgressControls(BuildContext context) {
@@ -494,11 +485,10 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     };
   }
 
-  /// Reusable "Completed" indicator widget
-  Widget _buildCompletedIndicator(BuildContext context) {
+  Widget _buildCompletedIndicator() {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: _cardDecoration(context),
+      decoration: _cardDecoration,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
@@ -524,43 +514,13 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     );
   }
 
-  Future<void> _completeLongTermGoal() async {
-    // First mark the goal as complete
-    await goalRepository.markLongTermComplete(_goal.id);
-    await _loadGoal();
-
-    if (!mounted) return;
-
-    // Navigate to accomplishment capture screen
-    final result = await Navigator.push<Map<String, dynamic>>(
-      context,
-      MaterialPageRoute(
-        builder: (context) => MemoryCaptureScreen(goal: _goal),
-      ),
-    );
-
-    // If celebrate flag is set, pop back to goal list with the flag and XP
-    if (result != null && result['celebrate'] == true) {
-      if (mounted) {
-        Navigator.of(context).pop({
-          'celebrate': true,
-          'xp': result['xp'] ?? 20,
-        });
-      }
-    }
-  }
-
-  // -- Completion Controls --
-
   Widget _buildCompletionControls(BuildContext context) {
-    if (_goal.isCompleted) {
-      return _buildCompletedIndicator(context);
-    }
+    if (_goal.isCompleted) return _buildCompletedIndicator();
 
     final isDaily = _goal.goalType == GoalType.daily;
 
     return Container(
-      decoration: _cardDecoration(context),
+      decoration: _cardDecoration,
       clipBehavior: Clip.antiAlias,
       child: Material(
         color: Colors.transparent,
@@ -600,17 +560,14 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     );
   }
 
-  // -- Percentage Controls --
-
   Widget _buildPercentageControls(BuildContext context) {
+    if (_goal.isCompleted) return _buildCompletedIndicator();
+
     final theme = Theme.of(context);
-    if (_goal.isCompleted) {
-      return _buildCompletedIndicator(context);
-    }
 
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: _cardDecoration(context),
+      decoration: _cardDecoration,
       child: Column(
         children: [
           Text(
@@ -670,8 +627,6 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     );
   }
 
-  // -- Milestone Controls --
-
   Widget _buildMilestoneControls(BuildContext context) {
     final theme = Theme.of(context);
     final completed = _goal.completedMilestones;
@@ -680,11 +635,10 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
 
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: _cardDecoration(context),
+      decoration: _cardDecoration,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with progress bar
           Row(
             children: [
               Text(
@@ -707,7 +661,6 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
             ],
           ),
           const SizedBox(height: 10),
-          // Mini progress bar
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
@@ -718,7 +671,6 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          // Timeline milestones
           ..._goal.milestones.asMap().entries.map((entry) {
             final milestone = entry.value;
             final index = entry.key;
@@ -728,7 +680,6 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Timeline dot + line
                   SizedBox(
                     width: 24,
                     child: Column(
@@ -765,7 +716,6 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  // Milestone card
                   Expanded(
                     child: Padding(
                       padding: EdgeInsets.only(bottom: isLast ? 0 : 8),
@@ -817,19 +767,15 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     );
   }
 
-  // -- Numeric Controls --
-
   Widget _buildNumericControls(BuildContext context) {
-    final theme = Theme.of(context);
-    if (_goal.isCompleted) {
-      return _buildCompletedIndicator(context);
-    }
+    if (_goal.isCompleted) return _buildCompletedIndicator();
 
+    final theme = Theme.of(context);
     final unit = _goal.unit ?? '';
 
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: _cardDecoration(context),
+      decoration: _cardDecoration,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -866,7 +812,6 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
             onSubmitted: (_) => _addNumericProgress(),
           ),
           const SizedBox(height: 12),
-          // Quick-add buttons
           Row(
             children: [
               _buildQuickAddButton(context, 1),
@@ -880,7 +825,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                 borderRadius: BorderRadius.circular(12),
                 child: IconButton(
                   onPressed: _isNumericInputValid ? _addNumericProgress : null,
-                  icon: const Icon(Icons.add, color: Colors.white, size: 24)
+                  icon: const Icon(Icons.add, color: Colors.white, size: 24),
                 ),
               ),
             ],
@@ -963,15 +908,6 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     );
   }
 
-  // --- 4. Streak Card ---
-
-  Widget _buildStreakCard() {
-    return StreakCard(
-      currentStreak: _goal.currentStreak,
-      bestStreak: _goal.longestStreak,
-    );
-  }
-
   // --- 5. Deadline Card ---
 
   Widget _buildDeadlineCard(BuildContext context) {
@@ -983,7 +919,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
 
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: _cardDecoration(context).copyWith(
+      decoration: _cardDecoration.copyWith(
         color: isOverdue ? theme.colorScheme.error.withValues(alpha: 0.06) : null,
       ),
       child: Row(
@@ -1039,17 +975,17 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
   }
 }
 
-/// Custom painter for gradient circular progress indicator
-class _GradientCircularProgressPainter extends CustomPainter {
+/// Custom painter for circular progress indicator
+class _CircularProgressPainter extends CustomPainter {
   final double progress;
   final Color trackColor;
-  final List<Color> gradientColors;
+  final Color progressColor;
   final double strokeWidth;
 
-  _GradientCircularProgressPainter({
+  _CircularProgressPainter({
     required this.progress,
     required this.trackColor,
-    required this.gradientColors,
+    required this.progressColor,
     required this.strokeWidth,
   });
 
@@ -1058,7 +994,6 @@ class _GradientCircularProgressPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = (size.width - strokeWidth) / 2;
 
-    // Draw track
     final trackPaint = Paint()
       ..color = trackColor
       ..strokeWidth = strokeWidth
@@ -1068,15 +1003,9 @@ class _GradientCircularProgressPainter extends CustomPainter {
 
     if (progress <= 0) return;
 
-    // Draw gradient arc
     final rect = Rect.fromCircle(center: center, radius: radius);
-    final gradient = SweepGradient(
-      startAngle: -pi / 2,
-      endAngle: -pi / 2 + 2 * pi * progress,
-      colors: gradientColors,
-    );
     final progressPaint = Paint()
-      ..shader = gradient.createShader(rect)
+      ..color = progressColor
       ..strokeWidth = strokeWidth
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
@@ -1091,8 +1020,9 @@ class _GradientCircularProgressPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _GradientCircularProgressPainter oldDelegate) {
+  bool shouldRepaint(covariant _CircularProgressPainter oldDelegate) {
     return oldDelegate.progress != progress ||
-        oldDelegate.trackColor != trackColor;
+        oldDelegate.trackColor != trackColor ||
+        oldDelegate.progressColor != progressColor;
   }
 }
