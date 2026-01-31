@@ -57,12 +57,24 @@ class _GoalsListScreenState extends State<GoalsListScreen>
     }
     _lastFilter = _filter;
     _cachedFilteredGoals = switch (_filter) {
-      GoalFilter.all => _goals.where((g) => !g.isCompleted).toList(),
+      GoalFilter.all => _goals.where((g) => !g.isCompleted).toList()
+        ..sort((a, b) {
+          // Daily goals first, then long-term goals
+          if (a.goalType == GoalType.daily && b.goalType != GoalType.daily) return -1;
+          if (a.goalType != GoalType.daily && b.goalType == GoalType.daily) return 1;
+          return 0;
+        }),
       GoalFilter.daily =>
         _goals.where((g) => g.goalType == GoalType.daily && !g.isCompleted).toList(),
       GoalFilter.longTerm =>
         _goals.where((g) => g.goalType == GoalType.longTerm && !g.isCompleted).toList(),
-      GoalFilter.completed => _goals.where((g) => g.isCompleted).toList(),
+      GoalFilter.completed => _goals.where((g) => g.isCompleted).toList()
+        ..sort((a, b) {
+          // Daily goals first, then long-term goals
+          if (a.goalType == GoalType.daily && b.goalType != GoalType.daily) return -1;
+          if (a.goalType != GoalType.daily && b.goalType == GoalType.daily) return 1;
+          return 0;
+        }),
     };
     return _cachedFilteredGoals!;
   }
