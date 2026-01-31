@@ -46,7 +46,14 @@ data class NativeGoal(
             }
             "percentage" -> percentComplete >= 100.0
             "milestones" -> milestones.isNotEmpty() && milestones.all { it.completed }
-            "numeric" -> targetValue != null && currentValue >= targetValue
+            "numeric" -> {
+                if (isDaily) {
+                    val now = System.currentTimeMillis()
+                    targetValue != null && todayCompletions.count { isSameDay(it, now) } >= targetValue
+                } else {
+                    targetValue != null && currentValue >= targetValue
+                }
+            }
             else -> false
         }
     }
