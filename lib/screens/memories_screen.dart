@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../widgets/dot_lottie_asset.dart';
 import '../domain/memory.dart';
 import '../services/service_locator.dart';
 import '../utils/app_colors.dart';
@@ -127,20 +128,12 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
+            SizedBox(
               width: 100,
               height: 100,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-              ),
-              child: ClipOval(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Image.asset(
-                    'assets/cat.png',
-                    fit: BoxFit.contain,
-                  ),
-                ),
+              child: DotLottieAsset(
+                'assets/idle/mascot.lottie',
+                fit: BoxFit.contain,
               ),
             ),
             const SizedBox(height: 24),

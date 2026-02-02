@@ -16,11 +16,18 @@ import '../utils/logger.dart';
 /// - **Goal completion** (`goal != null`): Congratulations header, creates memory linked to goal
 /// - **Standalone** (`goal == null, existingMemory == null`): Photo-first, story-style capture
 /// - **Edit** (`existingMemory != null`): Pre-fills all fields, replaces image on save
+/// - **Quick capture** (`initialImage != null`): Pre-populates with camera photo from nav bar
 class MemoryCaptureScreen extends StatefulWidget {
   final Goal? goal;
   final Memory? existingMemory;
+  final File? initialImage;
 
-  const MemoryCaptureScreen({super.key, this.goal, this.existingMemory});
+  const MemoryCaptureScreen({
+    super.key,
+    this.goal,
+    this.existingMemory,
+    this.initialImage,
+  });
 
   @override
   State<MemoryCaptureScreen> createState() => _MemoryCaptureScreenState();
@@ -67,6 +74,11 @@ class _MemoryCaptureScreenState extends State<MemoryCaptureScreen>
       _eventDate = m.eventDate;
     } else if (_isGoalCompletion) {
       _titleController.text = widget.goal!.title;
+    }
+    
+    // Pre-populate with initial image from quick capture
+    if (widget.initialImage != null) {
+      _selectedImage = widget.initialImage;
     }
   }
 

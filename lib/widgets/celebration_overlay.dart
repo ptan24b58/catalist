@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart';
 import '../utils/logger.dart';
+import 'dot_lottie_asset.dart';
 
 const _kDuration = Duration(milliseconds: 3650);
-const _kAssetPath = 'assets/celebration/fireworks.json';
+const _kAssetPath = 'assets/celebration/fireworks.lottie';
 
 /// Full-screen celebration overlay (fireworks). Auto-dismisses after 4 seconds.
 /// Call from goals list or goal detail when a goal is completed.
@@ -58,7 +58,7 @@ class _CelebrationOverlayContentState extends State<_CelebrationOverlayContent> 
       child: Center(
         child: SizedBox.square(
           dimension: side,
-          child: Lottie.asset(
+          child: DotLottieAsset(
             _kAssetPath,
             fit: BoxFit.contain,
             repeat: true,

@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../widgets/dot_lottie_asset.dart';
 import '../domain/goal.dart';
 import '../services/service_locator.dart';
 import '../utils/logger.dart';
@@ -298,20 +299,12 @@ class _GoalsListScreenState extends State<GoalsListScreen>
             ),
           ),
           const SizedBox(width: 12),
-          Container(
+          SizedBox(
             width: 100,
             height: 100,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-            ),
-            child: ClipOval(
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: Image.asset(
-                  'assets/cat.png',
-                  fit: BoxFit.contain,
-                ),
-              ),
+            child: DotLottieAsset(
+              'assets/idle/mascot.lottie',
+              fit: BoxFit.contain,
             ),
           ),
         ],
@@ -575,20 +568,12 @@ class _GoalsListScreenState extends State<GoalsListScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              Container(
+              SizedBox(
                 width: 100,
                 height: 100,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                ),
-                child: ClipOval(
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Image.asset(
-                      'assets/cat.png',
-                      fit: BoxFit.contain,
-                    ),
-                  ),
+                child: DotLottieAsset(
+                  'assets/idle/mascot.lottie',
+                  fit: BoxFit.contain,
                 ),
               ),
               const SizedBox(height: 16),
