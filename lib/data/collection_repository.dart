@@ -1,24 +1,25 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../domain/memory.dart';
+import '../domain/collection_item.dart';
 import '../domain/goal.dart';
 import '../services/goal_image_service.dart';
 import '../utils/logger.dart';
 import '../utils/id_generator.dart';
 
-/// Callback signature for memory change events
-typedef MemoryChangeCallback = Future<void> Function();
+/// Callback signature for collection change events
+typedef CollectionChangeCallback = Future<void> Function();
 
-/// Repository for managing memories
-class MemoryRepository {
-  static const String _memoriesKey = 'memories';
+/// Repository for managing collection items
+class CollectionRepository {
+  // Keep the same storage keys to preserve existing data
+  static const String _collectionKey = 'memories';
   static const String _migrationKey = 'memories_migration_v1';
 
   final GoalImageService _imageService = GoalImageService();
-  MemoryChangeCallback? _changeListener;
+  CollectionChangeCallback? _changeListener;
 
-  /// Set a listener to be notified when memories change
-  void setChangeListener(MemoryChangeCallback? listener) {
+  /// Set a listener to be notified when collection changes
+  void setChangeListener(CollectionChangeCallback? listener) {
     _changeListener = listener;
   }
 
@@ -29,13 +30,13 @@ class MemoryRepository {
     }
   }
 
-  /// Get all memories (runs migration on first call)
-  Future<List<Memory>> getAllMemories() async {
+  /// Get all collection items (runs migration on first call)
+  Future<List<CollectionItem>> getAllItems() async {
     await _runMigrationIfNeeded();
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      final json = prefs.getString(_memoriesKey);
+      final json = prefs.getString(_collectionKey);
 
       if (json == null || json.isEmpty) {
         return [];
@@ -43,13 +44,13 @@ class MemoryRepository {
 
       // 1MB guard
       if (json.length > 1000000) {
-        AppLogger.error('Memories JSON too large, potential corruption');
+        AppLogger.error('Collection JSON too large, potential corruption');
         return [];
       }
 
       final decoded = jsonDecode(json);
       if (decoded is! List) {
-        AppLogger.error('Invalid memories format: expected List');
+        AppLogger.error('Invalid collection format: expected List');
         return [];
       }
 
@@ -57,72 +58,72 @@ class MemoryRepository {
           .map((item) {
             try {
               if (item is! Map<String, dynamic>) {
-                AppLogger.warning('Invalid memory format: expected Map');
+                AppLogger.warning('Invalid collection item format: expected Map');
                 return null;
               }
-              return Memory.fromJson(item);
+              return CollectionItem.fromJson(item);
             } catch (e, stackTrace) {
-              AppLogger.warning('Failed to parse memory from JSON', e);
-              AppLogger.debug('Invalid memory JSON: $item', e, stackTrace);
+              AppLogger.warning('Failed to parse collection item from JSON', e);
+              AppLogger.debug('Invalid collection item JSON: $item', e, stackTrace);
               return null;
             }
           })
-          .whereType<Memory>()
+          .whereType<CollectionItem>()
           .toList();
     } catch (e, stackTrace) {
-      AppLogger.error('Failed to load memories', e, stackTrace);
+      AppLogger.error('Failed to load collection', e, stackTrace);
       return [];
     }
   }
 
-  /// Save a memory (create or update)
-  Future<void> saveMemory(Memory memory) async {
+  /// Save a collection item (create or update)
+  Future<void> saveItem(CollectionItem item) async {
     try {
-      final memories = await getAllMemories();
-      final index = memories.indexWhere((m) => m.id == memory.id);
+      final items = await getAllItems();
+      final index = items.indexWhere((m) => m.id == item.id);
 
       if (index >= 0) {
-        memories[index] = memory;
+        items[index] = item;
       } else {
-        memories.add(memory);
+        items.add(item);
       }
 
-      await _saveAllMemories(memories);
+      await _saveAllItems(items);
     } catch (e, stackTrace) {
-      AppLogger.error('Failed to save memory', e, stackTrace);
+      AppLogger.error('Failed to save collection item', e, stackTrace);
       rethrow;
     }
   }
 
-  /// Delete a memory and clean up its image
-  Future<void> deleteMemory(String id) async {
+  /// Delete a collection item and clean up its image
+  Future<void> deleteItem(String id) async {
     try {
-      final memories = await getAllMemories();
-      final memoryToDelete = memories.where((m) => m.id == id).firstOrNull;
+      final items = await getAllItems();
+      final itemToDelete = items.where((m) => m.id == id).firstOrNull;
 
-      if (memoryToDelete?.imagePath != null) {
-        await _imageService.deleteImage(memoryToDelete!.imagePath);
+      if (itemToDelete?.imagePath != null) {
+        await _imageService.deleteImage(itemToDelete!.imagePath);
       }
 
-      memories.removeWhere((m) => m.id == id);
-      await _saveAllMemories(memories);
+      items.removeWhere((m) => m.id == id);
+      await _saveAllItems(items);
     } catch (e, stackTrace) {
-      AppLogger.error('Failed to delete memory', e, stackTrace);
+      AppLogger.error('Failed to delete collection item', e, stackTrace);
       rethrow;
     }
   }
 
-  /// Get a memory by ID
-  Future<Memory?> getMemoryById(String id) async {
-    final memories = await getAllMemories();
+  /// Get a collection item by ID
+  Future<CollectionItem?> getItemById(String id) async {
+    final items = await getAllItems();
     try {
-      return memories.firstWhere((m) => m.id == id);
+      return items.firstWhere((m) => m.id == id);
     } catch (_) {
       return null;
     }
   }
 
-  /// One-time migration of existing goal completion data to memories
+  /// One-time migration of existing goal completion data to collection
   Future<void> _runMigrationIfNeeded() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -164,28 +165,28 @@ class MemoryRepository {
         return;
       }
 
-      // Read existing memories (if any)
-      final existingJson = prefs.getString(_memoriesKey);
-      final List<Memory> memories = [];
+      // Read existing collection items (if any)
+      final existingJson = prefs.getString(_collectionKey);
+      final List<CollectionItem> items = [];
       if (existingJson != null && existingJson.isNotEmpty) {
         final existingDecoded = jsonDecode(existingJson);
         if (existingDecoded is List) {
           for (final item in existingDecoded) {
             try {
               if (item is Map<String, dynamic>) {
-                memories.add(Memory.fromJson(item));
+                items.add(CollectionItem.fromJson(item));
               }
             } catch (_) {}
           }
         }
       }
 
-      // Create memories from completed goals
+      // Create collection items from completed goals
       for (final goal in completedGoals) {
         // Skip if already migrated
-        if (memories.any((m) => m.linkedGoalId == goal.id)) continue;
+        if (items.any((m) => m.linkedGoalId == goal.id)) continue;
 
-        final memory = Memory(
+        final collectionItem = CollectionItem(
           id: IdGenerator.generate(),
           title: goal.title,
           memo: goal.completionMemo,
@@ -195,30 +196,30 @@ class MemoryRepository {
           linkedGoalId: goal.id,
           linkedGoalTitle: goal.title,
         );
-        memories.add(memory);
+        items.add(collectionItem);
       }
 
-      // Save migrated memories
-      final encoded = jsonEncode(memories.map((m) => m.toJson()).toList());
-      await prefs.setString(_memoriesKey, encoded);
+      // Save migrated items
+      final encoded = jsonEncode(items.map((m) => m.toJson()).toList());
+      await prefs.setString(_collectionKey, encoded);
       await prefs.setBool(_migrationKey, true);
 
       AppLogger.info(
-          'Migrated ${completedGoals.length} goal completions to memories');
+          'Migrated ${completedGoals.length} goal completions to collection');
     } catch (e, stackTrace) {
-      AppLogger.error('Memory migration failed', e, stackTrace);
+      AppLogger.error('Collection migration failed', e, stackTrace);
       // Don't set flag so it retries next time
     }
   }
 
-  Future<void> _saveAllMemories(List<Memory> memories) async {
+  Future<void> _saveAllItems(List<CollectionItem> items) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final encoded = jsonEncode(memories.map((m) => m.toJson()).toList());
-      await prefs.setString(_memoriesKey, encoded);
+      final encoded = jsonEncode(items.map((m) => m.toJson()).toList());
+      await prefs.setString(_collectionKey, encoded);
       await _notifyChange();
     } catch (e, stackTrace) {
-      AppLogger.error('Failed to save memories to storage', e, stackTrace);
+      AppLogger.error('Failed to save collection to storage', e, stackTrace);
       rethrow;
     }
   }

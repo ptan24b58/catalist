@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import '../utils/app_colors.dart';
 import 'calendar_screen.dart';
 import 'goals_list_screen.dart';
-import 'memories_screen.dart';
+import 'collection_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,7 +18,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<Widget> _screens = const [
     GoalsListScreen(),
     CalendarScreen(),
-    MemoriesScreen(),
+    CollectionScreen(),
   ];
 
   void _onTabTapped(int index) {
@@ -67,12 +67,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     label: 'Calendar',
                   ),
                 ),
-                // Memories tab
+                // Collection tab
                 Expanded(
                   child: _buildNavItem(
                     index: 2,
                     icon: Icons.photo_album_rounded,
-                    label: 'Memories',
+                    label: 'Collection',
                   ),
                 ),
               ],

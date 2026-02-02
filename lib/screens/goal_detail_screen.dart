@@ -11,7 +11,7 @@ import '../widgets/gamification/streak_badge.dart';
 import '../widgets/gamification/crown_icon.dart';
 import '../widgets/gamification/xp_burst.dart';
 import '../widgets/celebration_overlay.dart';
-import 'memory_capture_screen.dart';
+import 'collection_capture_screen.dart';
 
 class GoalDetailScreen extends StatefulWidget {
   final Goal goal;
@@ -65,14 +65,14 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     }
   }
 
-  /// Navigate to memory capture for long-term goal completion, then pop with
+  /// Navigate to collection capture for long-term goal completion, then pop with
   /// celebrate result. Used by all progress types that can complete a long-term goal.
   Future<void> _handleLongTermCompletion() async {
     if (!mounted) return;
     final result = await Navigator.push<Map<String, dynamic>>(
       context,
       MaterialPageRoute(
-        builder: (context) => MemoryCaptureScreen(goal: _goal),
+        builder: (context) => CollectionCaptureScreen(goal: _goal),
       ),
     );
     if (result != null && result['celebrate'] == true && mounted) {

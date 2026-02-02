@@ -2,64 +2,64 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../widgets/dot_lottie_asset.dart';
-import '../domain/memory.dart';
+import '../domain/collection_item.dart';
 import '../services/service_locator.dart';
 import '../utils/app_colors.dart';
-import 'memory_capture_screen.dart';
+import 'collection_capture_screen.dart';
 
-/// Gallery screen showing all memories - both goal completions and standalone
-class MemoriesScreen extends StatefulWidget {
-  const MemoriesScreen({super.key});
+/// Gallery screen showing all collection items - both goal completions and standalone
+class CollectionScreen extends StatefulWidget {
+  const CollectionScreen({super.key});
 
   @override
-  State<MemoriesScreen> createState() => _MemoriesScreenState();
+  State<CollectionScreen> createState() => _CollectionScreenState();
 }
 
-class _MemoriesScreenState extends State<MemoriesScreen> {
-  List<Memory> _memories = [];
+class _CollectionScreenState extends State<CollectionScreen> {
+  List<CollectionItem> _items = [];
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadMemories();
+    _loadItems();
   }
 
-  Future<void> _loadMemories() async {
-    final memories = await memoryRepository.getAllMemories();
+  Future<void> _loadItems() async {
+    final items = await collectionRepository.getAllItems();
 
     // Sort by eventDate desc
-    memories.sort((a, b) => b.eventDate.compareTo(a.eventDate));
+    items.sort((a, b) => b.eventDate.compareTo(a.eventDate));
 
     if (mounted) {
       setState(() {
-        _memories = memories;
+        _items = items;
         _isLoading = false;
       });
     }
   }
 
-  Future<void> _addStandaloneMemory() async {
+  Future<void> _addItem() async {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const MemoryCaptureScreen(),
+        builder: (context) => const CollectionCaptureScreen(),
       ),
     );
     if (result == true) {
-      _loadMemories();
+      _loadItems();
     }
   }
 
-  Future<void> _editMemory(Memory memory) async {
+  Future<void> _editItem(CollectionItem item) async {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => MemoryCaptureScreen(existingMemory: memory),
+        builder: (context) => CollectionCaptureScreen(existingItem: item),
       ),
     );
     if (result == true) {
-      _loadMemories();
+      _loadItems();
     }
   }
 
@@ -93,7 +93,7 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
                         ),
                         const SizedBox(width: 12),
                         Text(
-                          'Memories',
+                          'Collection',
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
@@ -104,7 +104,7 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
                     ),
                   ),
                   Expanded(
-                    child: _memories.isEmpty
+                    child: _items.isEmpty
                         ? _buildEmptyState(theme)
                         : _buildGallery(theme),
                   ),
@@ -112,8 +112,8 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
               ),
       ),
       floatingActionButton: FloatingActionButton(
-        heroTag: 'memories_fab',
-        onPressed: _addStandaloneMemory,
+        heroTag: 'collection_fab',
+        onPressed: _addItem,
         backgroundColor: AppColors.xpGreen,
         foregroundColor: Colors.white,
         child: const Icon(Icons.photo_album_rounded),
@@ -175,7 +175,7 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  '${_memories.length} ${_memories.length == 1 ? 'memory' : 'memories'} captured',
+                  '${_items.length} ${_items.length == 1 ? 'item' : 'items'} collected',
                   style: TextStyle(
                     fontSize: 14,
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
@@ -190,16 +190,16 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
           sliver: SliverList(
             delegate: SliverChildBuilderDelegate(
               (context, index) {
-                final memory = _memories[index];
+                final item = _items[index];
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 16),
-                  child: _MemoryCard(
-                    memory: memory,
-                    onEdit: () => _editMemory(memory),
+                  child: _CollectionCard(
+                    item: item,
+                    onEdit: () => _editItem(item),
                   ),
                 );
               },
-              childCount: _memories.length,
+              childCount: _items.length,
             ),
           ),
         ),
@@ -208,23 +208,23 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
   }
 }
 
-class _MemoryCard extends StatelessWidget {
-  final Memory memory;
+class _CollectionCard extends StatelessWidget {
+  final CollectionItem item;
   final VoidCallback onEdit;
 
-  const _MemoryCard({required this.memory, required this.onEdit});
+  const _CollectionCard({required this.item, required this.onEdit});
 
   bool _imageFileExists() {
-    if (memory.imagePath == null || memory.imagePath!.isEmpty) return false;
-    return File(memory.imagePath!).existsSync();
+    if (item.imagePath == null || item.imagePath!.isEmpty) return false;
+    return File(item.imagePath!).existsSync();
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final hasImage = memory.imagePath != null && memory.imagePath!.isNotEmpty;
+    final hasImage = item.imagePath != null && item.imagePath!.isNotEmpty;
     final imageExists = _imageFileExists();
-    final hasMemo = memory.memo != null && memory.memo!.isNotEmpty;
+    final hasMemo = item.memo != null && item.memo!.isNotEmpty;
     final dateFormat = DateFormat('MMM d, yyyy');
 
     return GestureDetector(
@@ -253,7 +253,7 @@ class _MemoryCard extends StatelessWidget {
                   aspectRatio: 16 / 9,
                   child: imageExists
                       ? Image.file(
-                          File(memory.imagePath!),
+                          File(item.imagePath!),
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) =>
                               _buildImagePlaceholder(theme),
@@ -274,7 +274,7 @@ class _MemoryCard extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: memory.isGoalLinked
+                          color: item.isGoalLinked
                               ? AppColors.xpGreen.withValues(alpha: 0.1)
                               : Theme.of(context)
                                   .colorScheme
@@ -283,11 +283,11 @@ class _MemoryCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
-                          memory.isGoalLinked
+                          item.isGoalLinked
                               ? Icons.emoji_events_rounded
                               : Icons.bookmark_rounded,
                           size: 20,
-                          color: memory.isGoalLinked
+                          color: item.isGoalLinked
                               ? AppColors.xpGreen
                               : theme.colorScheme.primary,
                         ),
@@ -298,7 +298,7 @@ class _MemoryCard extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              memory.title,
+                              item.title,
                               style: const TextStyle(
                                 fontSize: 17,
                                 fontWeight: FontWeight.w600,
@@ -308,7 +308,7 @@ class _MemoryCard extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              dateFormat.format(memory.eventDate),
+                              dateFormat.format(item.eventDate),
                               style: TextStyle(
                                 fontSize: 12,
                                 color: theme.colorScheme.onSurface
@@ -343,7 +343,7 @@ class _MemoryCard extends StatelessWidget {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              memory.memo!,
+                              item.memo!,
                               style: TextStyle(
                                 fontSize: 13,
                                 fontStyle: FontStyle.italic,
@@ -405,9 +405,9 @@ class _MemoryCard extends StatelessWidget {
 
   void _showDetailSheet(BuildContext context) {
     final theme = Theme.of(context);
-    final hasImage = memory.imagePath != null && memory.imagePath!.isNotEmpty;
+    final hasImage = item.imagePath != null && item.imagePath!.isNotEmpty;
     final imageExists = _imageFileExists();
-    final hasMemo = memory.memo != null && memory.memo!.isNotEmpty;
+    final hasMemo = item.memo != null && item.memo!.isNotEmpty;
     final dateFormat = DateFormat('MMMM d, yyyy');
 
     showModalBottomSheet(
@@ -452,7 +452,7 @@ class _MemoryCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(16),
                             child: imageExists
                                 ? Image.file(
-                                    File(memory.imagePath!),
+                                    File(item.imagePath!),
                                     fit: BoxFit.cover,
                                     errorBuilder:
                                         (context, error, stackTrace) =>
@@ -526,7 +526,7 @@ class _MemoryCard extends StatelessWidget {
                                 Container(
                                   padding: const EdgeInsets.all(10),
                                   decoration: BoxDecoration(
-                                    color: memory.isGoalLinked
+                                    color: item.isGoalLinked
                                         ? AppColors.xpGreen
                                             .withValues(alpha: 0.1)
                                         : theme.colorScheme.primary
@@ -534,11 +534,11 @@ class _MemoryCard extends StatelessWidget {
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Icon(
-                                    memory.isGoalLinked
+                                    item.isGoalLinked
                                         ? Icons.emoji_events_rounded
                                         : Icons.bookmark_rounded,
                                     size: 24,
-                                    color: memory.isGoalLinked
+                                    color: item.isGoalLinked
                                         ? AppColors.xpGreen
                                         : theme.colorScheme.primary,
                                   ),
@@ -546,7 +546,7 @@ class _MemoryCard extends StatelessWidget {
                                 const SizedBox(width: 16),
                                 Expanded(
                                   child: Text(
-                                    memory.title,
+                                    item.title,
                                     style: const TextStyle(
                                       fontSize: 22,
                                       fontWeight: FontWeight.bold,
@@ -565,7 +565,7 @@ class _MemoryCard extends StatelessWidget {
                                 vertical: 8,
                               ),
                               decoration: BoxDecoration(
-                                color: memory.isGoalLinked
+                                color: item.isGoalLinked
                                     ? AppColors.xpGreen
                                         .withValues(alpha: 0.1)
                                     : theme.colorScheme.primary
@@ -576,24 +576,24 @@ class _MemoryCard extends StatelessWidget {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(
-                                    memory.isGoalLinked
+                                    item.isGoalLinked
                                         ? Icons.check_circle
                                         : Icons.calendar_today,
                                     size: 16,
-                                    color: memory.isGoalLinked
+                                    color: item.isGoalLinked
                                         ? AppColors.xpGreen
                                         : theme.colorScheme.primary,
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    memory.isGoalLinked
-                                        ? 'Completed ${dateFormat.format(memory.eventDate)}'
+                                    item.isGoalLinked
+                                        ? 'Completed ${dateFormat.format(item.eventDate)}'
                                         : dateFormat
-                                            .format(memory.eventDate),
+                                            .format(item.eventDate),
                                     style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w500,
-                                      color: memory.isGoalLinked
+                                      color: item.isGoalLinked
                                           ? AppColors.xpGreen
                                           : theme.colorScheme.primary,
                                     ),
@@ -624,7 +624,7 @@ class _MemoryCard extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
-                                  memory.memo!,
+                                  item.memo!,
                                   style: TextStyle(
                                     fontSize: 15,
                                     height: 1.5,
@@ -679,7 +679,7 @@ class _MemoryCard extends StatelessWidget {
                                   onEdit();
                                 },
                                 icon: const Icon(Icons.edit, size: 18),
-                                label: const Text('Edit Memory'),
+                                label: const Text('Edit Item'),
                                 style: OutlinedButton.styleFrom(
                                   padding: const EdgeInsets.symmetric(
                                       vertical: 14),

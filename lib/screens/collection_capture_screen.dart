@@ -3,37 +3,37 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../domain/goal.dart';
-import '../domain/memory.dart';
+import '../domain/collection_item.dart';
 import '../services/goal_image_service.dart';
 import '../services/service_locator.dart';
 import '../utils/app_colors.dart';
 import '../utils/id_generator.dart';
 import '../utils/logger.dart';
 
-/// Screen for capturing/editing a memory - designed to feel like journaling, not a form.
+/// Screen for capturing/editing a collection item - designed to feel like journaling, not a form.
 ///
 /// Three modes via constructor params:
-/// - **Goal completion** (`goal != null`): Congratulations header, creates memory linked to goal
-/// - **Standalone** (`goal == null, existingMemory == null`): Photo-first, story-style capture
-/// - **Edit** (`existingMemory != null`): Pre-fills all fields, replaces image on save
+/// - **Goal completion** (`goal != null`): Congratulations header, creates item linked to goal
+/// - **Standalone** (`goal == null, existingItem == null`): Photo-first, story-style capture
+/// - **Edit** (`existingItem != null`): Pre-fills all fields, replaces image on save
 /// - **Quick capture** (`initialImage != null`): Pre-populates with camera photo from nav bar
-class MemoryCaptureScreen extends StatefulWidget {
+class CollectionCaptureScreen extends StatefulWidget {
   final Goal? goal;
-  final Memory? existingMemory;
+  final CollectionItem? existingItem;
   final File? initialImage;
 
-  const MemoryCaptureScreen({
+  const CollectionCaptureScreen({
     super.key,
     this.goal,
-    this.existingMemory,
+    this.existingItem,
     this.initialImage,
   });
 
   @override
-  State<MemoryCaptureScreen> createState() => _MemoryCaptureScreenState();
+  State<CollectionCaptureScreen> createState() => _CollectionCaptureScreenState();
 }
 
-class _MemoryCaptureScreenState extends State<MemoryCaptureScreen>
+class _CollectionCaptureScreenState extends State<CollectionCaptureScreen>
     with SingleTickerProviderStateMixin {
   final _memoController = TextEditingController();
   final _titleController = TextEditingController();
@@ -50,7 +50,7 @@ class _MemoryCaptureScreenState extends State<MemoryCaptureScreen>
   late Animation<double> _fadeAnim;
 
   bool get _isGoalCompletion => widget.goal != null;
-  bool get _isEditing => widget.existingMemory != null;
+  bool get _isEditing => widget.existingItem != null;
   bool get _isStandalone => !_isGoalCompletion && !_isEditing;
   bool get _hasPhoto =>
       _selectedImage != null ||
@@ -67,7 +67,7 @@ class _MemoryCaptureScreenState extends State<MemoryCaptureScreen>
     _animController.forward();
 
     if (_isEditing) {
-      final m = widget.existingMemory!;
+      final m = widget.existingItem!;
       _titleController.text = m.title;
       _memoController.text = m.memo ?? '';
       _existingImagePath = m.imagePath;
@@ -200,7 +200,7 @@ class _MemoryCaptureScreenState extends State<MemoryCaptureScreen>
       _titleFocusNode.requestFocus();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Give this memory a name'),
+          content: const Text('Give this item a name'),
           behavior: SnackBarBehavior.floating,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -217,7 +217,7 @@ class _MemoryCaptureScreenState extends State<MemoryCaptureScreen>
 
       if (_selectedImage != null) {
         final entityId = _isEditing
-            ? widget.existingMemory!.id
+            ? widget.existingItem!.id
             : (_isGoalCompletion ? widget.goal!.id : IdGenerator.generate());
         imagePath = await _imageService.saveImage(entityId, _selectedImage!);
       }
@@ -227,15 +227,15 @@ class _MemoryCaptureScreenState extends State<MemoryCaptureScreen>
           : null;
 
       if (_isEditing) {
-        final updated = widget.existingMemory!.copyWith(
+        final updated = widget.existingItem!.copyWith(
           title: title,
           memo: memo,
           imagePath: imagePath,
           eventDate: _eventDate,
         );
-        await memoryRepository.saveMemory(updated);
+        await collectionRepository.saveItem(updated);
       } else {
-        final memory = Memory(
+        final item = CollectionItem(
           id: IdGenerator.generate(),
           title: title,
           memo: memo,
@@ -247,7 +247,7 @@ class _MemoryCaptureScreenState extends State<MemoryCaptureScreen>
           linkedGoalId: _isGoalCompletion ? widget.goal!.id : null,
           linkedGoalTitle: _isGoalCompletion ? widget.goal!.title : null,
         );
-        await memoryRepository.saveMemory(memory);
+        await collectionRepository.saveItem(item);
 
         if (_isGoalCompletion) {
           final updatedGoal = widget.goal!.copyWith(
@@ -266,7 +266,7 @@ class _MemoryCaptureScreenState extends State<MemoryCaptureScreen>
         Navigator.of(context).pop(true);
       }
     } catch (e, stackTrace) {
-      AppLogger.error('Failed to save memory', e, stackTrace);
+      AppLogger.error('Failed to save collection item', e, stackTrace);
       if (mounted) {
         setState(() => _isSaving = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -378,8 +378,8 @@ class _MemoryCaptureScreenState extends State<MemoryCaptureScreen>
               _isGoalCompletion
                   ? 'Capture this moment'
                   : _isEditing
-                      ? 'Edit memory'
-                      : 'New memory',
+                      ? 'Edit item'
+                      : 'New item',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
@@ -430,7 +430,7 @@ class _MemoryCaptureScreenState extends State<MemoryCaptureScreen>
           const SizedBox(width: 8),
           Flexible(
             child: Text(
-              'Goal completed! Save a memory of this moment.',
+              'Goal completed! Save this to your collection.',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
@@ -824,7 +824,7 @@ class _MemoryCaptureScreenState extends State<MemoryCaptureScreen>
                           ? 'Save & Celebrate'
                           : _isEditing
                               ? 'Save'
-                              : 'Save Memory',
+                              : 'Save to Collection',
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w600,
