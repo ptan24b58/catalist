@@ -24,6 +24,7 @@ class GoalRepository {
   static const String _lifetimeXpKey = 'lifetime_earned_xp';
   static const String _perfectDayStreakKey = 'perfect_day_streak';
   static const String _lastPerfectDayKey = 'last_perfect_day';
+  static const String _perfectDaysHistoryKey = 'perfect_days_history';
 
   GoalChangeCallback? _changeListener;
 
@@ -186,6 +187,57 @@ class GoalRepository {
     }
   }
 
+  /// Get all dates where all daily goals were completed (perfect days history).
+  /// Returns a Set of normalized DateTime objects (midnight UTC).
+  Future<Set<DateTime>> getPerfectDaysHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final historyJson = prefs.getString(_perfectDaysHistoryKey);
+      
+      if (historyJson == null || historyJson.isEmpty) {
+        return {};
+      }
+      
+      final decoded = jsonDecode(historyJson);
+      if (decoded is! List) {
+        return {};
+      }
+      
+      return decoded
+          .map((e) => DateTime.tryParse(e as String))
+          .whereType<DateTime>()
+          .map((d) => DateUtils.normalizeToDay(d))
+          .toSet();
+    } catch (e, stackTrace) {
+      AppLogger.error('Failed to get perfect days history', e, stackTrace);
+      return {};
+    }
+  }
+
+  /// Add a date to perfect days history
+  Future<void> _addPerfectDayToHistory(DateTime date) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final history = await getPerfectDaysHistory();
+      final normalizedDate = DateUtils.normalizeToDay(date);
+      
+      if (history.contains(normalizedDate)) {
+        return; // Already recorded
+      }
+      
+      history.add(normalizedDate);
+      
+      // Keep only last 365 days to prevent unbounded growth
+      final cutoff = DateTime.now().subtract(const Duration(days: 365));
+      final filtered = history.where((d) => d.isAfter(cutoff)).toList();
+      
+      final encoded = jsonEncode(filtered.map((d) => d.toIso8601String()).toList());
+      await prefs.setString(_perfectDaysHistoryKey, encoded);
+    } catch (e, stackTrace) {
+      AppLogger.error('Failed to add perfect day to history', e, stackTrace);
+    }
+  }
+
   /// Get the perfect day streak (consecutive days where ALL daily goals were completed).
   /// This value is persistent and doesn't change when goals are added/deleted.
   /// It resets only when a day passes without completing all daily goals.
@@ -280,6 +332,9 @@ class GoalRepository {
       
       await prefs.setInt(_perfectDayStreakKey, newStreak);
       await prefs.setString(_lastPerfectDayKey, today.toIso8601String());
+      
+      // Also add to perfect days history for calendar display
+      await _addPerfectDayToHistory(today);
       
       AppLogger.info('Perfect day streak updated: $newStreak');
     } catch (e, stackTrace) {

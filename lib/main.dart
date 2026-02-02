@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'screens/home_screen.dart';
+import 'services/notification_service.dart';
 import 'services/widget_action_handler.dart';
 import 'utils/app_colors.dart';
 import 'utils/logger.dart';
@@ -13,6 +14,13 @@ const _textSecondary = TextStyle(color: AppColors.textSecondary);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize notification service
+  try {
+    await NotificationService.instance.initialize();
+  } catch (e, stackTrace) {
+    AppLogger.error('Error initializing notifications', e, stackTrace);
+  }
 
   // Check for widget actions on app start
   try {

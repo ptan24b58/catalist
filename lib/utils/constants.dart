@@ -49,6 +49,10 @@ class AppConstants {
   static const double deadlineWeight = 0.6;
   static const double longTermProgressWeight = 0.4;
 
+  // ============ Event Configuration ============
+  static const int maxEventTitleLength = 100;
+  static const int maxEventNotesLength = 500;
+
   // ============ Error Messages ============
   static const String errorGoalNotFound = 'Goal not found';
   static const String errorInvalidInput = 'Invalid input provided';
